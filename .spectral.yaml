@@ -1,0 +1,46 @@
+extends: spectral:recommended
+formats: [yml, yaml]
+rules:
+  srs-meta-exists:
+    given: "$"
+    then:
+      - field: meta.title
+        function: truthy
+      - field: meta.version
+        function: truthy
+  srs-reqs-exist:
+    given: "$"
+    then:
+      - field: requirements
+        function: truthy
+  srs-req-id-pattern:
+    given: "$.requirements[*].id"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[A-Z0-9]{2,10}-REQ-[0-9]{3,}$"
+  srs-acceptance-nonempty:
+    given: "$.requirements[*]"
+    then:
+      field: acceptance
+      function: falsy
+      functionOptions:
+        not: false
+  srs-acceptance-id-pattern:
+    given: "$.requirements[*].acceptance[*].id"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^AT-[0-9]{3,}$"
+  srs-custom-sections-unique:
+    description: custom_sections ids must be unique
+    given: "$.meta.custom_sections[*].id"
+    then:
+      function: defined
+  srs-profile-valid:
+    description: profile must be minimal|webapp|game when present
+    given: "$.meta.profile"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^(minimal|webapp|game)$"

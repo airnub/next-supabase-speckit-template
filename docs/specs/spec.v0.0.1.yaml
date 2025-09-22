@@ -1,0 +1,36 @@
+meta:
+  title: "{{APP_TITLE}}"
+  version: "0.0.1"
+  repo: "{{REPO_NAME}}"
+  prefix: "APP"
+  org: "{{ORG_NAME}}"
+  profile: minimal
+  features:
+    private_groups: false
+    settlement_scoring: false
+    housebot: false
+    market_data_provider: false
+    notifications: true
+    admin_console: true
+  custom_sections: []
+
+requirements:
+  - id: APP-REQ-001
+    title: "Anonymous first action"
+    priority: must
+    acceptance:
+      - id: AT-001
+        gwt: |
+          Given a first-time visitor
+          When they perform the primary action
+          Then the system records it without signup
+
+  - id: APP-REQ-002
+    title: "Email magic-link sign-in"
+    priority: must
+    acceptance:
+      - id: AT-002
+        gwt: |
+          Given a registered user
+          When they request a magic link
+          Then they can sign in and see their dashboard
