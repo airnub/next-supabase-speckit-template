@@ -21,10 +21,10 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           editUrl: undefined,
           exclude: [
-            'website/**',
-            'build/**',
             '.docusaurus/**',
+            'build/**',
             '**/node_modules/**',
+            'website/**',            
           ],
         },
         blog: false,
