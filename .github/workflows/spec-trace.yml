@@ -2,30 +2,52 @@ name: Spec Trace
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
 jobs:
   spec-trace:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Install deps
         run: |
           corepack enable
           pnpm i
+
       - name: Lint SRS (Spectral)
         run: pnpm lint:spec
+
       - name: Generate Spec/Brief/Plan (defaults from SRS)
         run: pnpm docs:gen
+
       - name: Build RTM (placeholder)
         run: pnpm rtm:build
+
+      - name: Install Docs deps (Docusaurus)
+        run: pnpm -C docs/site i
+
+      - name: Build Docs (Docusaurus)
+        run: pnpm docs:build
+
       - name: Run tests (Playwright)
         run: npx playwright test --reporter=line || true
-      - name: Upload RTM + generated docs
+
+      - name: Upload artifacts (docs + rtm + generated)
         uses: actions/upload-artifact@v4
         with:
           name: docs-and-rtm
           path: |
             docs/specs/generated/**
             docs/rtm.md
+            docs/site/build/**
+
+      - name: Ensure AGENTS.md is in sync
+        run: |
+          git diff --exit-code -- AGENTS.md || (echo "::error::AGENTS.md is stale. Run 'pnpm docs:gen' and commit the update." && exit 1)
