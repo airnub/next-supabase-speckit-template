@@ -1,0 +1,33 @@
+name: 'AI Repo Review'
+inputs:
+  ai-api-key:
+    required: true
+  ai-base-url:
+    default: ${{ env.AI_API_BASE }}
+  ai-model:
+    required: false
+  prompt-file:
+    default: .github/prompts/repo_review/prompt.yaml
+  output-file:
+    default: ai_repo_review.md
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      run: |
+        mkdir -p .ai/tmp
+        echo "# Recent commits" > .ai/tmp/context.md
+        git log -n 50 --pretty=format:'- %h %ad %s (%an)' --date=short >> .ai/tmp/context.md
+        echo -e "\n# Files (top-level)\n" >> .ai/tmp/context.md
+        git ls-files | sed 's/^/  - /' >> .ai/tmp/context.md
+    - shell: bash
+      run: |
+        base="${{ inputs.prompt-file }}"
+        { cat "$base"; echo "---"; echo "context_md: |"; sed 's/^/  /' .ai/tmp/context.md; } > .ai/tmp/prompt.yaml
+    - shell: bash
+      env:
+        AI_BASE: ${{ inputs.ai-base-url }}
+        AI_KEY: ${{ inputs.ai-api-key }}
+      run: |
+        curl -sS -H "Authorization: Bearer $AI_KEY" -H "Content-Type: application/yaml"           --data-binary @.ai/tmp/prompt.yaml           "${AI_BASE}" > "${{ inputs.output-file }}"
+

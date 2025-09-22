@@ -1,0 +1,46 @@
+name: AI PR Review (SDD)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        uses: ./.github/actions/load-env
+        with:
+          required-flags: ENABLE_PR_REVIEW_WORKFLOW
+      - if: steps.gate.outputs.skip == 'true'
+        run: echo "PR Review workflow disabled."
+      - if: steps.gate.outputs.skip != 'true' && github.event_name == 'issue_comment'
+        run: |
+          if [[ ! "${{ github.event.comment.body || '' }}" =~ (^|\s)/review(\s|$) ]]; then
+            echo "No /review command; skipping."; exit 78; fi
+      - if: steps.gate.outputs.skip != 'true'
+        uses: ./.github/actions/ai-pr-review
+        with:
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
+          ai-api-key: ${{ secrets.AI_API_KEY }}
+          ai-base-url: ${{ secrets.AI_API_BASE || 'https://api.example.ai/v1/review' }}
+          ai-model: ${{ secrets.AI_MODEL }}
+          prompt-file: .github/prompts/pr-review.prompt.yaml
+          output-file: ai_report.md
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-pr-review
+          path: ai_report.md
+      - if: steps.gate.outputs.skip != 'true'
+        uses: ./.github/actions/comment-pr
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          body-file: ai_report.md
+

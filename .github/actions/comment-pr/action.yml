@@ -1,0 +1,29 @@
+name: 'Comment PR'
+inputs:
+  github-token:
+    required: true
+  body-file:
+    required: true
+  pr-number:
+    required: false
+runs:
+  using: 'composite'
+  steps:
+    - id: pr
+      shell: bash
+      run: |
+        num="${{ inputs.pr-number }}"
+        if [[ -z "$num" ]]; then
+          num=$(jq -r '.pull_request.number // .issue.number // empty' "$GITHUB_EVENT_PATH") || true
+        fi
+        echo "num=$num" >> $GITHUB_OUTPUT
+    - if: steps.pr.outputs.num != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ github.repository }}
+      run: |
+        body="$(cat "${{ inputs.body-file }}")"
+        jq -n --arg body "$body" '{body:$body}' > body.json
+        curl -sSL -H "Authorization: Bearer $GH_TOKEN" -H 'Content-Type: application/json'           -d @body.json           "https://api.github.com/repos/$REPO/issues/${{ steps.pr.outputs.num }}/comments" > /dev/null
+

@@ -1,0 +1,35 @@
+name: 'Load .env & Gate Workflow'
+description: 'Reads .env and sets outputs.skip=true unless required flags are true.'
+inputs:
+  env-file:
+    default: .env
+  required-flags:
+    default: ''
+outputs:
+  skip:
+    value: ${{ steps.gate.outputs.skip }}
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        if [[ -f "${{ inputs.env-file }}" ]]; then
+          set -a; source "${{ inputs.env-file }}"; set +a
+        fi
+    - id: gate
+      shell: bash
+      run: |
+        flags="${{ inputs.required-flags }}"
+        if [[ -z "$flags" ]]; then echo "skip=false" >> $GITHUB_OUTPUT; exit 0; fi
+        skip=false
+        IFS=',' read -r -a arr <<< "$flags"
+        for v in "${arr[@]}"; do
+          k="$(echo "$v" | xargs)"
+          cur="$(printenv "$k" || true)"
+          shopt -s nocasematch
+          if [[ ! "$cur" =~ ^(true|1|yes)$ ]]; then skip=true; fi
+          shopt -u nocasematch
+        done
+        echo "skip=$skip" >> $GITHUB_OUTPUT
+

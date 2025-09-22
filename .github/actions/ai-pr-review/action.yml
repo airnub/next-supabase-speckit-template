@@ -1,0 +1,72 @@
+name: 'AI PR Review'
+inputs:
+  gh-token:
+    required: true
+  ai-api-key:
+    required: true
+  ai-base-url:
+    default: ${{ env.AI_API_BASE }}
+  ai-model:
+    required: false
+  prompt-file:
+    default: .github/prompts/pr-review.prompt.yaml
+  output-file:
+    default: ai_report.md
+  diff-max-bytes:
+    default: ${{ env.AI_DIFF_MAX_BYTES }}
+runs:
+  using: 'composite'
+  steps:
+    - id: pr
+      shell: bash
+      run: |
+        PR=$(jq -r '.pull_request.number // .issue.number // empty' "$GITHUB_EVENT_PATH") || true
+        BASE=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH") || true
+        HEAD=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH") || true
+        echo "pr=$PR" >> $GITHUB_OUTPUT
+        echo "base=$BASE" >> $GITHUB_OUTPUT
+        echo "head=$HEAD" >> $GITHUB_OUTPUT
+    - if: steps.pr.outputs.pr != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.gh-token }}
+      run: |
+        mkdir -p .ai/tmp
+        curl -sSL -H "Authorization: Bearer $GH_TOKEN"           "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${{ steps.pr.outputs.pr }}/files?per_page=100" > .ai/tmp/files.json
+        jq -r '.[].filename' .ai/tmp/files.json > .ai/tmp/files.txt
+        : > .ai/tmp/diffs.txt
+        total=0; max=${{ inputs.diff-max-bytes }}
+        jq -r '.[] | select(.patch) | .filename + "\n" + .patch + "\n\n"' .ai/tmp/files.json | while IFS= read -r line; do
+          bytes=$(printf %s "$line" | wc -c)
+          if (( total + bytes > max )); then break; fi
+          printf %s "$line" >> .ai/tmp/diffs.txt
+          total=$(( total + bytes ))
+        done
+    - shell: bash
+      run: |
+        base="${{ inputs.prompt-file }}"
+        mkdir -p .ai/tmp
+        cat > .ai/tmp/context.yaml << EOF
+context:
+  repository: "${GITHUB_REPOSITORY}"
+  event: "${GITHUB_EVENT_NAME}"
+  pr_number: "${{ steps.pr.outputs.pr }}"
+  base_sha: "${{ steps.pr.outputs.base }}"
+  head_sha: "${{ steps.pr.outputs.head }}"
+  docs:
+    spec: docs/specs/generated/spec-latest.md
+    brief: docs/specs/generated/coding-agent-brief-latest.md
+    plan: docs/specs/generated/orchestration-plan-latest.md
+changed_files: |
+$( (test -f .ai/tmp/files.txt && sed 's/^/  - /' .ai/tmp/files.txt) || echo '  - (not available)')
+diffs: |
+$( (test -f .ai/tmp/diffs.txt && sed 's/^/  /' .ai/tmp/diffs.txt) || echo '  (diff capture unavailable)')
+EOF
+        { cat "$base"; echo "---"; [[ -n "${{ inputs.ai-model }}" ]] && echo "model: ${{ inputs.ai-model }}"; cat .ai/tmp/context.yaml; } > .ai/tmp/prompt.yaml
+    - shell: bash
+      env:
+        AI_BASE: ${{ inputs.ai-base-url }}
+        AI_KEY: ${{ inputs.ai-api-key }}
+      run: |
+        curl -sS -H "Authorization: Bearer $AI_KEY" -H "Content-Type: application/yaml"           --data-binary @.ai/tmp/prompt.yaml           "${AI_BASE}" > "${{ inputs.output-file }}"
+

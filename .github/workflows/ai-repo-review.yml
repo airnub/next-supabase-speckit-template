@@ -1,0 +1,44 @@
+name: Weekly AI Repo Review
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: gate
+        uses: ./.github/actions/load-env
+        with:
+          required-flags: ENABLE_AI_REPO_REVIEW_WORKFLOW
+      - if: steps.gate.outputs.skip == 'true'
+        run: echo "Weekly repo review disabled."
+      - if: steps.gate.outputs.skip != 'true'
+        uses: ./.github/actions/ai-repo-review
+        with:
+          ai-api-key: ${{ secrets.AI_API_KEY }}
+          ai-base-url: ${{ secrets.AI_API_BASE || 'https://api.example.ai/v1/review' }}
+          ai-model: ${{ secrets.AI_MODEL }}
+          prompt-file: .github/prompts/repo_review/prompt.yaml
+          output-file: ai_repo_review.md
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-repo-review
+          path: ai_repo_review.md
+      - if: steps.gate.outputs.skip != 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: weekly AI repo review"
+          branch: ai-repo-review
+          title: "chore: weekly AI repo review"
+          body: "Automated AI repo review report."
+          add-paths: ai_repo_review.md
+
