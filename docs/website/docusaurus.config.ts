@@ -21,8 +21,9 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           editUrl: undefined,
           exclude: [
-            'site/**',
             'website/**',
+            'build/**',
+            '.docusaurus/**',
             '**/node_modules/**',
           ],
         },
