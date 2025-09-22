@@ -1,7 +1,2 @@
 import { defineConfig } from '@playwright/test';
-
-export default defineConfig({
-  testDir: 'tests',
-  reporter: [['list']/*, ['allure-playwright']*/],
-  use: { headless: true }
-});
+export default defineConfig({ testDir: 'tests', reporter: [['list']], use: { headless: true } });

@@ -2,7 +2,7 @@ meta:
   title: "{{APP_TITLE}}"
   version: "0.0.1"
   repo: "{{REPO_NAME}}"
-  prefix: "APP"
+  prefix: "{{APP_PREFIX}}"
   org: "{{ORG_NAME}}"
   profile: minimal
   features:
@@ -15,7 +15,7 @@ meta:
   custom_sections: []
 
 requirements:
-  - id: APP-REQ-001
+  - id: {{APP_PREFIX}}-REQ-001
     title: "Anonymous first action"
     priority: must
     acceptance:
@@ -25,7 +25,7 @@ requirements:
           When they perform the primary action
           Then the system records it without signup
 
-  - id: APP-REQ-002
+  - id: {{APP_PREFIX}}-REQ-002
     title: "Email magic-link sign-in"
     priority: must
     acceptance:

@@ -7,7 +7,7 @@ const specsDir = path.join(root,'docs/specs');
 const srsFile = fs.readdirSync(specsDir).find(f=>/^spec\.v[0-9]+\.[0-9]+\.[0-9]+\.yaml$/.test(f));
 if(!srsFile){ console.error('No SRS found'); process.exit(1); }
 const srs:any = yaml.load(fs.readFileSync(path.join(specsDir, srsFile),'utf8'));
-const rows = srs.requirements.map((r:any)=>{
+const rows = (srs.requirements||[]).map((r:any)=>{
   const acs = (r.acceptance||[]).map((a:any)=>a.id).join(', ');
   return `| ${r.id} | ${r.title} | ${acs} | unknown |`;
 }).join('\n');

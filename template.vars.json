@@ -3,5 +3,5 @@
   "APP_TITLE": "{{env.APP_TITLE||Humanized from repo}}",
   "APP_PREFIX": "APP",
   "VERSION": "0.0.1",
-  "ORG_NAME": "Your Org"
+  "ORG_NAME": "{{env.ORG_NAME||auto}}"
 }

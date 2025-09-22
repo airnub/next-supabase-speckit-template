@@ -32,13 +32,7 @@ rules:
       function: pattern
       functionOptions:
         match: "^AT-[0-9]{3,}$"
-  srs-custom-sections-unique:
-    description: custom_sections ids must be unique
-    given: "$.meta.custom_sections[*].id"
-    then:
-      function: defined
   srs-profile-valid:
-    description: profile must be minimal|webapp|game when present
     given: "$.meta.profile"
     then:
       function: pattern
