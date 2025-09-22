@@ -12,12 +12,12 @@
 ## Quickstart
 ```bash
 corepack enable
-pnpm i
+pnpm install
 pnpm docs:gen
 pnpm rtm:build
-
-pnpm -C docs/website i
 pnpm docs:serve   # dev server
 # or
 pnpm docs:build   # static build in docs/website/build
 ```
+
+> ℹ️ The repository is configured as a [pnpm workspace](https://pnpm.io/workspaces). Running `pnpm install` at the root installs the Docusaurus app in `docs/website` along with the rest of the tooling, so you no longer need to run a separate install inside the docs folder.
