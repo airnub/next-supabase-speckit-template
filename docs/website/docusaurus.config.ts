@@ -22,6 +22,7 @@ const config: Config = {
           editUrl: undefined,
           exclude: [
             'site/**',
+            'website/**',
             '**/node_modules/**',
           ],
         },

@@ -10,9 +10,9 @@ playwright-report/
 blob-report/
 allure-results/
 allure-report/
-docs/site/.docusaurus/
-docs/site/build/
-docs/site/node_modules/
+docs/website/.docusaurus/
+docs/website/build/
+docs/website/node_modules/
 .idea/
 .vscode/
 .DS_Store

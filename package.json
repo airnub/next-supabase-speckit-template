@@ -8,8 +8,8 @@
     "docs:gen": "tsx scripts/spec-gen.ts",
     "rtm:build": "tsx scripts/rtm/build-rtm.ts",
     "agent:run": "tsx scripts/agent/run.ts",
-    "docs:serve": "pnpm -C docs/site start",
-    "docs:build": "pnpm -C docs/site build"
+    "docs:serve": "pnpm -C docs/website start",
+    "docs:build": "pnpm -C docs/website build"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

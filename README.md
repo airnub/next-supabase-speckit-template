@@ -16,8 +16,8 @@ pnpm i
 pnpm docs:gen
 pnpm rtm:build
 
-pnpm -C docs/site i
+pnpm -C docs/website i
 pnpm docs:serve   # dev server
 # or
-pnpm docs:build   # static build in docs/site/build
+pnpm docs:build   # static build in docs/website/build
 ```
