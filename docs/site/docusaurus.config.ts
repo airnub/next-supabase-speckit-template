@@ -20,6 +20,10 @@ const config: Config = {
           // Prefer a string path to avoid ESM `require` pitfalls
           sidebarPath: './sidebars.ts',
           editUrl: undefined,
+          exclude: [
+            'site/**',
+            '**/node_modules/**',
+          ],
         },
         blog: false,
         theme: { customCss: './src/css/custom.css' },
