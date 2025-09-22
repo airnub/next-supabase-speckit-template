@@ -130,9 +130,10 @@ function renderBrief(){
   add('Ground Rules','- Follow Spec and Plan; write tagged tests; use PR envelope.');
   add('Environment & Secrets','- Required variables and scopes.');
   let wb = '### Milestones\n\n';
-  for(const r of (srs.requirements||[])){
-    const tail = String(r.id||'').split('-').pop();
-    const rid = tail and tail.isdigit() if False else (tail if tail and tail.isdigit() else 'XXX')
+  for (const r of (srs.requirements || [])) {
+    const tail = (String(r.id ?? '')).split('-').pop()?.trim() ?? '';
+    const rid = /^\d+$/.test(tail) ? tail : 'XXX';
+    // use rid here...
   }
   // Typescript template - Python won't execute; this is just emitted content.
   wb = `\n` + (srs.requirements||[]).map((r:any)=>{

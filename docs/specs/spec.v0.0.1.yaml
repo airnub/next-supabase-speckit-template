@@ -15,7 +15,7 @@ meta:
   custom_sections: []
 
 requirements:
-  - id: {{APP_PREFIX}}-REQ-001
+  - id: REQ-001
     title: "Anonymous first action"
     priority: must
     acceptance:
@@ -24,8 +24,7 @@ requirements:
           Given a first-time visitor
           When they perform the primary action
           Then the system records it without signup
-
-  - id: {{APP_PREFIX}}-REQ-002
+  - id: REQ-002
     title: "Email magic-link sign-in"
     priority: must
     acceptance:
