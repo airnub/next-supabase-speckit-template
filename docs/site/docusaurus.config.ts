@@ -1,8 +1,9 @@
-import { defineConfig } from '@docusaurus/types';
+// docusaurus.config.ts
 import type { Config } from '@docusaurus/types';
+import type { Options as ClassicOptions, ThemeConfig as ClassicThemeConfig } from '@docusaurus/preset-classic';
 
-export default defineConfig({
-  title: process.env.APP_TITLE || '{{APP_TITLE}}',
+const config: Config = {
+  title: process.env.APP_TITLE ?? '{{APP_TITLE}}',
   url: 'https://example.com',
   baseUrl: '/',
   favicon: 'img/favicon.ico',
@@ -13,14 +14,25 @@ export default defineConfig({
     [
       'classic',
       {
-        docs: { path: '../', routeBasePath: '/', sidebarPath: require.resolve('./sidebars.ts'), editUrl: undefined },
+        docs: {
+          path: '../',
+          routeBasePath: '/',
+          // Prefer a string path to avoid ESM `require` pitfalls
+          sidebarPath: './sidebars.ts',
+          editUrl: undefined,
+        },
         blog: false,
-        theme: { customCss: require.resolve('./src/css/custom.css') },
-      },
+        theme: { customCss: './src/css/custom.css' },
+      } satisfies ClassicOptions,
     ],
   ],
   themeConfig: {
-    navbar: { title: process.env.APP_TITLE || '{{APP_TITLE}}', items: [{ to: '/', label: 'Docs', position: 'left' }] },
+    navbar: {
+      title: process.env.APP_TITLE ?? '{{APP_TITLE}}',
+      items: [{ to: '/', label: 'Docs', position: 'left' }],
+    },
     footer: { style: 'dark', copyright: `© ${new Date().getFullYear()}` },
-  },
-}) satisfies Config;
+  } satisfies ClassicThemeConfig,
+};
+
+export default config;
