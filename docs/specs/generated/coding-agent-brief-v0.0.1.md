@@ -1,6 +1,6 @@
-# Next Supabase Spec Driven Development Template — Coding Agent Brief (v0.0.1)
+# Next Supabase Speckit Template — Coding Agent Brief (v0.0.1)
 
-_Source: docs/specs/spec.v0.0.1.yaml · Generated 2025-09-22_
+_Source: docs/specs/spec.v0.0.1.yaml · Generated 2025-09-23_
 
 ## Ground Rules
 

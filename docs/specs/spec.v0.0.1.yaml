@@ -4,7 +4,7 @@ meta:
   repo: "{{REPO_NAME}}"
   prefix: "{{APP_PREFIX}}"
   org: "{{ORG_NAME}}"
-  profile: minimal
+  profile: custom # custom profile exercises fallback to explicit features
   features:
     private_groups: false
     settlement_scoring: false
