@@ -10,7 +10,11 @@ interface Meta {
   profile?: string;
   features?: Record<string, boolean>;
 }
-interface SRS { meta: Meta; requirements: Requirement[] }
+interface DocumentSubsection { title: string; body?: string }
+interface DocumentSection { number?: number|string; title: string; body?: string; subsections?: DocumentSubsection[] }
+interface DocumentSpec { heading?: string; file_path?: string; overview?: string; sections?: DocumentSection[]; output_file?: string }
+type FrontMatter = Record<string, string>
+interface SRS { meta: Meta; requirements: Requirement[]; front_matter?: FrontMatter; document?: DocumentSpec }
 
 const argv = process.argv.slice(2);
 const getArg = (k: string) => { const i = argv.indexOf(k); return i!==-1 ? argv[i+1] : undefined; };
@@ -30,6 +34,7 @@ const REPO_NAME = vars.REPO_NAME && !vars.REPO_NAME.includes('{{') ? vars.REPO_N
 const APP_TITLE = vars.APP_TITLE && !vars.APP_TITLE.includes('{{') ? vars.APP_TITLE : (srs.meta.title && !String(srs.meta.title).includes('{{') ? String(srs.meta.title) : REPO_NAME.replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
 const APP_PREFIX = (vars.APP_PREFIX && !vars.APP_PREFIX.includes('{{')) ? vars.APP_PREFIX : (srs.meta.prefix && !String(srs.meta.prefix).includes('{{') ? String(srs.meta.prefix) : 'APP');
 const VERSION = srs.meta.version;
+const ORG_NAME = vars.ORG_NAME && !vars.ORG_NAME.includes('{{') ? vars.ORG_NAME : (srs.meta.org && !String(srs.meta.org).includes('{{') ? String(srs.meta.org) : '');
 const DATE = new Date().toISOString().slice(0,10);
 
 const PROFILE_DEFAULTS: Record<KnownProfile, Record<string, boolean>> = {
@@ -45,6 +50,15 @@ const mergedFeatures = { ...profileDefaults, ...(srs.meta.features||{}), ...feat
 function mdH1(s:string){ return `# ${s}\n\n`; }
 function mdH2(s:string){ return `## ${s}\n\n`; }
 function traceFooter(prefix:string){ return `\n> **Traceability Hooks**  \n> • Tag tests: @${prefix}-REQ-###  \n> • PR Agent Task Envelope: spec_ids, tests_added, adr_ids  \n> • See RTM: docs/rtm.md  \n> • (Optional) Allure report + OTel trace ID\n`; }
+function applyTokens(input?: string){
+  if(!input) return '';
+  return input
+    .replace(/{{APP_TITLE}}/g, APP_TITLE)
+    .replace(/{{APP_PREFIX}}/g, APP_PREFIX)
+    .replace(/{{REPO_NAME}}/g, REPO_NAME)
+    .replace(/{{ORG_NAME}}/g, ORG_NAME)
+    .replace(/{{VERSION}}/g, VERSION);
+}
 
 const outDir = path.join(specsDir,'generated'); fs.mkdirSync(outDir,{recursive:true});
 
@@ -58,6 +72,44 @@ function renderAcceptance(srs:SRS){
 }
 
 function renderSpec(){
+  const doc = srs.document;
+  const hasRichDoc = doc && Array.isArray(doc.sections) && doc.sections.length > 0;
+  if(hasRichDoc && doc){
+    let md = '';
+    const fm = srs.front_matter;
+    if (fm && Object.keys(fm).length){
+      md += '---\n';
+      for(const [key,val] of Object.entries(fm)){ md += `${key}: ${applyTokens(String(val ?? ''))}\n`; }
+      md += '---\n\n';
+    }
+    if(doc.heading){ md += `${applyTokens(doc.heading).trim()}\n\n`; }
+    if(doc.file_path){ md += `${applyTokens(doc.file_path).trim()}\n\n`; }
+    if(doc.overview){ md += `${applyTokens(doc.overview).trim()}\n\n`; }
+    for(const section of doc.sections || []){
+      md += '---\n\n';
+      const label = section.number !== undefined && section.number !== null && String(section.number).length>0
+        ? `## ${section.number}) ${applyTokens(section.title || '')}`
+        : `## ${applyTokens(section.title || '')}`;
+      md += `${label}\n`;
+      const body = applyTokens(section.body || '').trimEnd();
+      if(body){ md += `${body}\n`; }
+      if(section.subsections){
+        for(const sub of section.subsections){
+          const subTitle = applyTokens(sub.title || '').trim();
+          if(subTitle){ md += `\n### ${subTitle}\n\n`; }
+          const subBody = applyTokens(sub.body || '').trimEnd();
+          if(subBody){ md += `${subBody}\n`; }
+        }
+      }
+      md += '\n';
+    }
+    md = md.replace(/\s+$/, '\n');
+    const outputName = applyTokens(doc.output_file || `${APP_PREFIX.toLowerCase()}-spec-v${VERSION}.md`);
+    fs.writeFileSync(path.join(outDir, outputName), md);
+    fs.writeFileSync(path.join(outDir, 'spec-latest.md'), md);
+    return;
+  }
+
   const base = `${APP_PREFIX.toLowerCase()}-spec-v${VERSION}.md`; // short file
   let md = '';
   md += mdH1(`${APP_TITLE} — Specification (v${VERSION})`);
