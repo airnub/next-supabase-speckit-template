@@ -8,3 +8,5 @@ This site is generated from the SRS YAML and shows the **Specification**, **Codi
 - Spec: `docs/specs/generated/spec-latest.md`
 - Coding Agent Brief: `docs/specs/generated/coding-agent-brief-latest.md`
 - Orchestration Plan: `docs/specs/generated/orchestration-plan-latest.md`
+
+> **Heads up:** The repository currently provides the documentation and automation toolchain only. Scaffold your own Next.js / Supabase app under `apps/` when you're ready to implement the product.
