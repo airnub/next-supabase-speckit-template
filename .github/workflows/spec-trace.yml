@@ -31,7 +31,7 @@ jobs:
         run: pnpm rtm:build
 
       - name: Install Docs deps (Docusaurus)
-        run: pnpm -C docs/site i
+        run: pnpm -C docs/website install
 
       - name: Build Docs (Docusaurus)
         run: pnpm docs:build
@@ -46,7 +46,7 @@ jobs:
           path: |
             docs/specs/generated/**
             docs/rtm.md
-            docs/site/build/**
+            docs/website/build/**
 
       - name: Ensure AGENTS.md is in sync
         run: |
