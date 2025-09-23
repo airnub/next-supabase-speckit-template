@@ -29,6 +29,7 @@ interface SRS {
   front_matter?: FrontMatter;
   document?: DocumentSpec;
   brief?: DocumentSpec;
+  plan?: DocumentSpec;
 }
 
 const argv = process.argv.slice(2);
@@ -110,21 +111,36 @@ function renderSections(sections?: DocumentSection[]){
   return md;
 }
 
+function renderFrontMatter(fm?: FrontMatter){
+  if(!fm) return '';
+  const entries = Object.entries(fm);
+  if(!entries.length) return '';
+  let md = '---\n';
+  for (const [key, val] of entries) {
+    md += `${key}: ${applyTokens(String(val ?? ''))}\n`;
+  }
+  md += '---\n\n';
+  return md;
+}
+
 function renderSpec(){
   const doc = srs.document;
   const hasRichDoc = doc && Array.isArray(doc.sections) && doc.sections.length > 0;
   if(hasRichDoc && doc){
     let md = '';
-    const fm = srs.front_matter;
-    if (fm && Object.keys(fm).length){
-      md += '---\n';
-      for(const [key,val] of Object.entries(fm)){ md += `${key}: ${applyTokens(String(val ?? ''))}\n`; }
-      md += '---\n\n';
-    }
+    md += renderFrontMatter(srs.front_matter);
     if(doc.heading){ md += `${applyTokens(doc.heading).trim()}\n\n`; }
     if(doc.file_path){ md += `${applyTokens(doc.file_path).trim()}\n\n`; }
     if(doc.overview){ md += `${applyTokens(doc.overview).trim()}\n\n`; }
+    if(doc.intro){
+      const intro = applyTokens(doc.intro).trim();
+      if(intro){ md += `${intro}\n\n`; }
+    }
     md += renderSections(doc.sections);
+    if(doc.closing){
+      const closing = applyTokens(doc.closing).trimEnd();
+      if(closing){ md += `${closing}\n`; }
+    }
     md = md.replace(/\s+$/, '\n');
     const outputName = applyTokens(doc.output_file || `${APP_PREFIX.toLowerCase()}-spec-v${VERSION}.md`);
     fs.writeFileSync(path.join(outDir, outputName), md);
@@ -166,6 +182,30 @@ function renderSpec(){
 }
 
 function renderPlan(){
+  const doc = srs.plan;
+  const hasRichDoc = doc && Array.isArray(doc.sections) && doc.sections.length > 0;
+  if(hasRichDoc && doc){
+    let md = '';
+    md += renderFrontMatter(doc.front_matter);
+    if(doc.heading){ md += `${applyTokens(doc.heading).trim()}\n\n`; }
+    if(doc.file_path){ md += `${applyTokens(doc.file_path).trim()}\n\n`; }
+    if(doc.overview){ md += `${applyTokens(doc.overview).trim()}\n\n`; }
+    if(doc.intro){
+      const intro = applyTokens(doc.intro).trim();
+      if(intro){ md += `${intro}\n\n`; }
+    }
+    md += renderSections(doc.sections);
+    if(doc.closing){
+      const closing = applyTokens(doc.closing).trimEnd();
+      if(closing){ md += `${closing}\n`; }
+    }
+    md = md.replace(/\s+$/, '\n');
+    const outputName = applyTokens(doc.output_file || `orchestration-plan-v${VERSION}.md`);
+    fs.writeFileSync(path.join(outDir, outputName), md);
+    fs.writeFileSync(path.join(outDir, 'orchestration-plan-latest.md'), md);
+    return;
+  }
+
   const name = `orchestration-plan-v${VERSION}.md`;
   let md = '';
   md += mdH1(`${APP_TITLE} — Orchestration Plan (v${VERSION})`);
