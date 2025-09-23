@@ -28,7 +28,7 @@ jobs:
         run: |
           corepack enable
           pnpm i
-          pnpm -C docs/site i
+          pnpm -C docs/website install
 
       - name: Generate Spec/Brief/Plan + RTM
         run: |
@@ -41,7 +41,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/site/build
+          path: docs/website/build
 
   deploy:
     environment:
