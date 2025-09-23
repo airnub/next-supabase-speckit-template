@@ -1,6 +1,7 @@
 // docusaurus.config.ts
 import type { Config } from '@docusaurus/types';
 import type { Options as ClassicOptions, ThemeConfig as ClassicThemeConfig } from '@docusaurus/preset-classic';
+import { themes as prismThemes } from 'prism-react-renderer';
 
 const config: Config = {
   title: process.env.APP_TITLE ?? '{{APP_TITLE}}',
@@ -33,11 +34,20 @@ const config: Config = {
     ],
   ],
   themeConfig: {
+    colorMode: {
+      defaultMode: 'dark',
+      respectPrefersColorScheme: true,
+    },
     navbar: {
+      hideOnScroll: true,
       title: process.env.APP_TITLE ?? '{{APP_TITLE}}',
       items: [{ to: '/', label: 'Docs', position: 'left' }],
     },
     footer: { style: 'dark', copyright: `© ${new Date().getFullYear()}` },
+    prism: {
+      theme: prismThemes.github,
+      darkTheme: prismThemes.nightOwl,
+    },
   } satisfies ClassicThemeConfig,
 };
 
