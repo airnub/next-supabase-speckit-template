@@ -39,8 +39,23 @@ const featuresOverride = (()=>{ try { return JSON.parse(getArg('--features')||'{
 
 const root = process.cwd();
 const specsDir = path.join(root,'docs/specs');
-const srsFile = fs.readdirSync(specsDir).find(f=>/^spec\.v[0-9]+\.[0-9]+\.[0-9]+\.yaml$/.test(f));
-if(!srsFile){ console.error('No docs/specs/spec.v*.yaml found'); process.exit(1); }
+const specVersionRegex = /^spec\.v(\d+)\.(\d+)\.(\d+)\.yaml$/;
+const specFiles = fs.readdirSync(specsDir).filter(f=>specVersionRegex.test(f));
+if(!specFiles.length){ console.error('No docs/specs/spec.v*.yaml found'); process.exit(1); }
+const parseVersion = (filename: string) => {
+  const match = filename.match(specVersionRegex);
+  if(!match){ return { major: 0, minor: 0, patch: 0 }; }
+  const [, major, minor, patch] = match;
+  return { major: Number(major), minor: Number(minor), patch: Number(patch) };
+};
+const srsFile = specFiles.sort((a,b)=>{
+  const va = parseVersion(a);
+  const vb = parseVersion(b);
+  if(vb.major !== va.major){ return vb.major - va.major; }
+  if(vb.minor !== va.minor){ return vb.minor - va.minor; }
+  if(vb.patch !== va.patch){ return vb.patch - va.patch; }
+  return 0;
+})[0];
 const srs: SRS = yaml.load(fs.readFileSync(path.join(specsDir, srsFile),'utf8')) as any;
 
 const varsPath = path.join(root, 'template.vars.json');
