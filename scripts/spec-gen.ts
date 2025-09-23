@@ -4,16 +4,17 @@ import yaml from 'js-yaml';
 
 interface Acceptance { id: string; gwt: string }
 interface Requirement { id: string; title: string; priority?: string; rationale?: string; acceptance: Acceptance[] }
+type KnownProfile = 'minimal'|'webapp'|'game';
 interface Meta {
   title: string; version: string; repo?: string; prefix?: string; org?: string;
-  profile?: 'minimal'|'webapp'|'game';
+  profile?: string;
   features?: Record<string, boolean>;
 }
 interface SRS { meta: Meta; requirements: Requirement[] }
 
 const argv = process.argv.slice(2);
 const getArg = (k: string) => { const i = argv.indexOf(k); return i!==-1 ? argv[i+1] : undefined; };
-const profileOverride = getArg('--profile') as Meta['profile'];
+const profileOverride = getArg('--profile');
 const featuresOverride = (()=>{ try { return JSON.parse(getArg('--features')||'{}') } catch { return {} } })();
 
 const root = process.cwd();
@@ -31,13 +32,15 @@ const APP_PREFIX = (vars.APP_PREFIX && !vars.APP_PREFIX.includes('{{')) ? vars.A
 const VERSION = srs.meta.version;
 const DATE = new Date().toISOString().slice(0,10);
 
-const PROFILE_DEFAULTS: Record<NonNullable<Meta['profile']>, Record<string, boolean>> = {
+const PROFILE_DEFAULTS: Record<KnownProfile, Record<string, boolean>> = {
   minimal: { private_groups:false, settlement_scoring:false, housebot:false, market_data_provider:false, notifications:true, admin_console:true },
   webapp:  { private_groups:false, settlement_scoring:false, housebot:false, market_data_provider:false, notifications:true, admin_console:true },
   game:    { private_groups:false, settlement_scoring:true,  housebot:true,  market_data_provider:false, notifications:true, admin_console:true }
 }
+const isKnownProfile = (value: string): value is KnownProfile => Object.prototype.hasOwnProperty.call(PROFILE_DEFAULTS, value);
 const profile = profileOverride || srs.meta.profile || 'minimal';
-const mergedFeatures = { ...PROFILE_DEFAULTS[profile], ...(srs.meta.features||{}), ...featuresOverride };
+const profileDefaults = typeof profile === 'string' && isKnownProfile(profile) ? PROFILE_DEFAULTS[profile] : {};
+const mergedFeatures = { ...profileDefaults, ...(srs.meta.features||{}), ...featuresOverride };
 
 function mdH1(s:string){ return `# ${s}\n\n`; }
 function mdH2(s:string){ return `## ${s}\n\n`; }
