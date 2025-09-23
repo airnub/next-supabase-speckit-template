@@ -113,13 +113,13 @@ This template aims to scale from a single developer to **enterprise teams** (dev
 - GitHub Action: **Run Agent** (manual dispatch) to generate and attach prompt artifact.
 
 ### 4.5 Documentation Site (Docusaurus)
-- Lives at `docs/site/`, configured to read **root** `docs/`.
+- Lives at `docs/website/`, configured to read **root** `docs/`.
 - CI builds the site and (optionally) deploys to GitHub Pages.
 - Keeps docs discoverable without locking content into a custom format.
 
 ### 4.6 CI / Quality Gates
 - **Spec Trace** workflow: lints SRS, regenerates docs, builds RTM, builds docs site, runs Playwright.
-- **Deploy Docs** workflow: publishes `docs/site/build` to GitHub Pages.
+- **Deploy Docs** workflow: publishes `docs/website/build` to GitHub Pages.
 - **PR Template**: enforces the Agent Task Envelope and visible acceptance evidence.
 
 ### 4.7 AI Guardrails (Off by Default)
