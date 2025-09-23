@@ -23,6 +23,12 @@ _Source: docs/specs/spec.v0.0.1.yaml · Generated 2025-09-23_
 ## Core Flows
 
 - Primary user journeys.
+## Rules / Algorithms (canonical)
+
+- Verification of formulas.
+## Automation Services (workers/cron)
+
+- Runtimes and scheduling.
 ## Notifications & Preferences
 
 - Channels and DND.
@@ -35,6 +41,9 @@ _Source: docs/specs/spec.v0.0.1.yaml · Generated 2025-09-23_
 ## Integrations (Outbound + Inbound)
 
 - Webhooks and adapters.
+## External Providers (swappable)
+
+- DI contracts and mocks.
 ## OG Images & Social Copy
 
 - Dynamic images and meta.

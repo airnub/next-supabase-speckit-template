@@ -19,6 +19,9 @@ _Source: docs/specs/spec.v0.0.1.yaml · Generated 2025-09-23_
 ## Data Model & Security
 
 - High‑level schema and RLS/ACL.
+## Rules/Algorithms & Helpers
+
+- Helpers for formulas with unit tests.
 ## Admin Console
 
 - Admin journeys to implement.
