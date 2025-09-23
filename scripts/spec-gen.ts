@@ -12,9 +12,24 @@ interface Meta {
 }
 interface DocumentSubsection { title: string; body?: string }
 interface DocumentSection { number?: number|string; title: string; body?: string; subsections?: DocumentSubsection[] }
-interface DocumentSpec { heading?: string; file_path?: string; overview?: string; sections?: DocumentSection[]; output_file?: string }
+interface DocumentSpec {
+  heading?: string;
+  file_path?: string;
+  overview?: string;
+  intro?: string;
+  sections?: DocumentSection[];
+  output_file?: string;
+  closing?: string;
+  front_matter?: FrontMatter;
+}
 type FrontMatter = Record<string, string>
-interface SRS { meta: Meta; requirements: Requirement[]; front_matter?: FrontMatter; document?: DocumentSpec }
+interface SRS {
+  meta: Meta;
+  requirements: Requirement[];
+  front_matter?: FrontMatter;
+  document?: DocumentSpec;
+  brief?: DocumentSpec;
+}
 
 const argv = process.argv.slice(2);
 const getArg = (k: string) => { const i = argv.indexOf(k); return i!==-1 ? argv[i+1] : undefined; };
@@ -71,6 +86,30 @@ function renderAcceptance(srs:SRS){
   return md;
 }
 
+function renderSections(sections?: DocumentSection[]){
+  let md = '';
+  for(const section of sections || []){
+    md += '---\n\n';
+    const rawTitle = applyTokens(section.title || '').trim();
+    const label = section.number !== undefined && section.number !== null && String(section.number).length>0
+      ? `## ${section.number}) ${rawTitle}`
+      : `## ${rawTitle}`;
+    md += `${label}\n`;
+    const body = applyTokens(section.body || '').trimEnd();
+    if(body){ md += `${body}\n`; }
+    if(section.subsections){
+      for(const sub of section.subsections){
+        const subTitle = applyTokens(sub.title || '').trim();
+        if(subTitle){ md += `\n### ${subTitle}\n\n`; }
+        const subBody = applyTokens(sub.body || '').trimEnd();
+        if(subBody){ md += `${subBody}\n`; }
+      }
+    }
+    md += '\n';
+  }
+  return md;
+}
+
 function renderSpec(){
   const doc = srs.document;
   const hasRichDoc = doc && Array.isArray(doc.sections) && doc.sections.length > 0;
@@ -85,24 +124,7 @@ function renderSpec(){
     if(doc.heading){ md += `${applyTokens(doc.heading).trim()}\n\n`; }
     if(doc.file_path){ md += `${applyTokens(doc.file_path).trim()}\n\n`; }
     if(doc.overview){ md += `${applyTokens(doc.overview).trim()}\n\n`; }
-    for(const section of doc.sections || []){
-      md += '---\n\n';
-      const label = section.number !== undefined && section.number !== null && String(section.number).length>0
-        ? `## ${section.number}) ${applyTokens(section.title || '')}`
-        : `## ${applyTokens(section.title || '')}`;
-      md += `${label}\n`;
-      const body = applyTokens(section.body || '').trimEnd();
-      if(body){ md += `${body}\n`; }
-      if(section.subsections){
-        for(const sub of section.subsections){
-          const subTitle = applyTokens(sub.title || '').trim();
-          if(subTitle){ md += `\n### ${subTitle}\n\n`; }
-          const subBody = applyTokens(sub.body || '').trimEnd();
-          if(subBody){ md += `${subBody}\n`; }
-        }
-      }
-      md += '\n';
-    }
+    md += renderSections(doc.sections);
     md = md.replace(/\s+$/, '\n');
     const outputName = applyTokens(doc.output_file || `${APP_PREFIX.toLowerCase()}-spec-v${VERSION}.md`);
     fs.writeFileSync(path.join(outDir, outputName), md);
@@ -177,6 +199,41 @@ function renderPlan(){
 }
 
 function renderBrief(){
+  const doc = srs.brief;
+  const hasRichBrief = doc && (
+    (doc.sections && doc.sections.length > 0) ||
+    (doc.heading && doc.heading.trim().length>0) ||
+    (doc.intro && doc.intro.trim().length>0) ||
+    (doc.overview && doc.overview.trim().length>0) ||
+    (doc.closing && doc.closing.trim().length>0)
+  );
+  if(hasRichBrief && doc){
+    let md = '';
+    const fm = doc.front_matter;
+    if(fm && Object.keys(fm).length){
+      md += '---\n';
+      for(const [key,val] of Object.entries(fm)){ md += `${key}: ${applyTokens(String(val ?? ''))}\n`; }
+      md += '---\n\n';
+    }
+    const heading = applyTokens(doc.heading || '').trim();
+    if(heading){ md += `${heading}\n\n`; }
+    const intro = applyTokens(doc.intro || '').trim();
+    if(intro){ md += `${intro}\n\n`; }
+    const overview = applyTokens(doc.overview || '').trim();
+    if(overview){ md += `${overview}\n\n`; }
+    const sectionsMd = renderSections(doc.sections);
+    if(sectionsMd){ md += sectionsMd; }
+    const closing = applyTokens(doc.closing || '').trim();
+    if(closing){
+      md += `---\n\n${closing}\n`;
+    }
+    md = md.replace(/\s+$/, '\n');
+    const outputName = applyTokens(doc.output_file || `coding-agent-brief-v${VERSION}.md`);
+    fs.writeFileSync(path.join(outDir, outputName), md);
+    fs.writeFileSync(path.join(outDir, 'coding-agent-brief-latest.md'), md);
+    return;
+  }
+
   const name = `coding-agent-brief-v${VERSION}.md`;
   let md = '';
   md += mdH1(`${APP_TITLE} — Coding Agent Brief (v${VERSION})`);
@@ -184,14 +241,7 @@ function renderBrief(){
   const add = (title:string,body:string)=>{ md += mdH2(title)+body+'\n'; };
   add('Ground Rules','- Follow Spec and Plan; write tagged tests; use PR envelope.');
   add('Environment & Secrets','- Required variables and scopes.');
-  let wb = '### Milestones\n\n';
-  for (const r of (srs.requirements || [])) {
-    const tail = (String(r.id ?? '')).split('-').pop()?.trim() ?? '';
-    const rid = /^\d+$/.test(tail) ? tail : 'XXX';
-    // use rid here...
-  }
-  // Typescript template - Python won't execute; this is just emitted content.
-  wb = `\n` + (srs.requirements||[]).map((r:any)=>{
+  let wb = '\n' + (srs.requirements||[]).map((r:any)=>{
     const tail = String(r.id||'').split('-').pop();
     const rid = /\d+/.test(tail||'') ? tail : 'XXX';
     return `- ${r.id}: ${r.title}\n  - Checklist: write test tagged @${APP_PREFIX}-REQ-${rid} ; update PR envelope ; attach evidence\n`;
