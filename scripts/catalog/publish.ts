@@ -61,7 +61,7 @@ const manifest = {
   version: metaVersion,
   dialect: specConfig?.source?.dialect || { id: 'speckit.v1', version: '1.0.0' },
   provenance: {
-    repo: 'airnub/next-supabase-speckit-template',
+    repo: 'airnub/speckit-template-next-supabase',
     generator: 'speckit',
   },
 };

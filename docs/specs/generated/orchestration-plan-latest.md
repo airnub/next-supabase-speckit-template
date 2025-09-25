@@ -70,9 +70,9 @@ Sequenced plan aligning implementation milestones with CI and catalog deliverabl
 ## Manual QA
 Execute:
 ```bash
-rm -rf /tmp/next-supabase-template \
-  && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
-  && cd /tmp/next-supabase-template \
+rm -rf /tmp/speckit-template-next-supabase \
+  && speckit template use https://github.com/airnub/speckit-template-next-supabase /tmp/speckit-template-next-supabase \
+  && cd /tmp/speckit-template-next-supabase \
   && pnpm docs:gen && pnpm rtm:build
 ```
 Expectations:

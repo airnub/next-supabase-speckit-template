@@ -183,9 +183,9 @@ observability:
 
 manual_qa:
   command: |
-    rm -rf /tmp/next-supabase-template \
-      && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
-      && cd /tmp/next-supabase-template \
+    rm -rf /tmp/speckit-template-next-supabase \
+      && speckit template use https://github.com/airnub/speckit-template-next-supabase /tmp/speckit-template-next-supabase \
+      && cd /tmp/speckit-template-next-supabase \
       && pnpm docs:gen && pnpm rtm:build
   expectations:
     - "Prompts for {{REPO_NAME}}, {{APP_TITLE}}, Supabase URL + anon key during init"
@@ -193,7 +193,7 @@ manual_qa:
     - "`docs/specs/generated/**` exist with placeholders replaced"
 
 agent_prompt: |
-  # Coding Agent Prompt — **next‑supabase‑speckit‑template**
+  # Coding Agent Prompt — **speckit-template-next-supabase**
   
   > **Goal:** Turn this repository into a **publishable, community‑importable Speckit template** that preserves all opinionated, platform‑specific decisions (Next.js + Supabase, **RLS**, **Vault**, i18n, performance/security gotchas, ADRs, CI gates). **Do not genericize or discard any platform detail.**
   
@@ -369,7 +369,7 @@ agent_prompt: |
     "name": "next-supabase",
     "version": "0.1.0",
     "dialect": { "id": "speckit.v1", "version": "1.0.0" },
-    "provenance": { "repo": "airnub/next-supabase-speckit-template", "generator": "speckit" }
+    "provenance": { "repo": "airnub/speckit-template-next-supabase", "generator": "speckit" }
   }
   ```
   
@@ -400,9 +400,9 @@ agent_prompt: |
   Provide steps (and verify they pass):
   
   ```bash
-  rm -rf /tmp/next-supabase-template \
-    && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
-    && cd /tmp/next-supabase-template \
+  rm -rf /tmp/speckit-template-next-supabase \
+    && speckit template use https://github.com/airnub/speckit-template-next-supabase /tmp/speckit-template-next-supabase \
+    && cd /tmp/speckit-template-next-supabase \
     && pnpm docs:gen && pnpm rtm:build
   ```
   

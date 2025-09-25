@@ -122,7 +122,7 @@ ensure(docSpec, 'documents.spec must be defined');
 ensure(docBrief, 'documents.brief must be defined');
 ensure(docPlan, 'documents.plan must be defined');
 
-const repoNameValue = (meta.repo_name && typeof meta.repo_name === 'string') ? meta.repo_name : 'next-supabase-speckit-template';
+const repoNameValue = (meta.repo_name && typeof meta.repo_name === 'string') ? meta.repo_name : 'speckit-template-next-supabase';
 const repoSlugSource = repoNameValue.includes('{') ? 'next-supabase' : repoNameValue;
 const repoSlug = repoSlugSource.split('/').pop() || repoSlugSource;
 const safeSlug = repoSlug.toLowerCase().replace(/[^a-z0-9-]+/g, '-');

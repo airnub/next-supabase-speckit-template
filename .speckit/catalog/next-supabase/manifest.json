@@ -6,7 +6,7 @@
     "version": "1.0.0"
   },
   "provenance": {
-    "repo": "airnub/next-supabase-speckit-template",
+    "repo": "airnub/speckit-template-next-supabase",
     "generator": "speckit"
   }
 }
