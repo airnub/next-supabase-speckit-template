@@ -122,11 +122,11 @@ ensure(docSpec, 'documents.spec must be defined');
 ensure(docBrief, 'documents.brief must be defined');
 ensure(docPlan, 'documents.plan must be defined');
 
-const repoNameValue = (meta.repo_name && typeof meta.repo_name === 'string') ? meta.repo_name : 'next-supabase-speckit-template';
+const repoNameValue = (meta.repo_name && typeof meta.repo_name === 'string') ? meta.repo_name : 'speckit-template-next-supabase';
 const repoSlugSource = repoNameValue.includes('{') ? 'next-supabase' : repoNameValue;
 const repoSlug = repoSlugSource.split('/').pop() || repoSlugSource;
 const safeSlug = repoSlug.toLowerCase().replace(/[^a-z0-9-]+/g, '-');
-const version = (meta.version && typeof meta.version === 'string' && meta.version.length > 0) ? meta.version : '0.0.1';
+const version = (meta.version && typeof meta.version === 'string' && meta.version.length > 0) ? meta.version : '0.1.0';
 
 function fmtList(items: string[], bullet: string = '-') {
   return items.map((item) => `${bullet} ${item}`).join('\n');

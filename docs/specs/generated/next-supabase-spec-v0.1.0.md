@@ -141,9 +141,9 @@ automated docs, and catalog publishing for Speckit consumers.
 - `pnpm test:acceptance` runs Playwright tests tagged with `@REQ-*`.
 - Manual QA command:
 ```bash
-rm -rf /tmp/next-supabase-template \
-  && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
-  && cd /tmp/next-supabase-template \
+rm -rf /tmp/speckit-template-next-supabase \
+  && speckit template use https://github.com/airnub/speckit-template-next-supabase /tmp/speckit-template-next-supabase \
+  && cd /tmp/speckit-template-next-supabase \
   && pnpm docs:gen && pnpm rtm:build
 ```
 Expectations:

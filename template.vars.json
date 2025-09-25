@@ -4,6 +4,6 @@
   "SUPABASE_URL": { "prompt": "Supabase URL (https://…)" },
   "SUPABASE_ANON_KEY": { "prompt": "Supabase anon key" },
   "APP_PREFIX": "APP",
-  "VERSION": "0.0.1",
+  "VERSION": "0.1.0",
   "ORG_NAME": "{{env.ORG_NAME||auto}}"
 }

@@ -65,7 +65,7 @@ with enforced RLS, wire Vault-backed secrets, and honor the manual QA scenario.
 ---
 
 ## Agent Prompt (copy-paste)
-# Coding Agent Prompt — **next‑supabase‑speckit‑template**
+# Coding Agent Prompt — **speckit-template-next-supabase**
 
 > **Goal:** Turn this repository into a **publishable, community‑importable Speckit template** that preserves all opinionated, platform‑specific decisions (Next.js + Supabase, **RLS**, **Vault**, i18n, performance/security gotchas, ADRs, CI gates). **Do not genericize or discard any platform detail.**
 
@@ -241,7 +241,7 @@ Example `manifest.json` starter:
   "name": "next-supabase",
   "version": "0.1.0",
   "dialect": { "id": "speckit.v1", "version": "1.0.0" },
-  "provenance": { "repo": "airnub/next-supabase-speckit-template", "generator": "speckit" }
+  "provenance": { "repo": "airnub/speckit-template-next-supabase", "generator": "speckit" }
 }
 ```
 
@@ -272,9 +272,9 @@ Create/verify workflows in `.github/workflows/`:
 Provide steps (and verify they pass):
 
 ```bash
-rm -rf /tmp/next-supabase-template \
-  && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
-  && cd /tmp/next-supabase-template \
+rm -rf /tmp/speckit-template-next-supabase \
+  && speckit template use https://github.com/airnub/speckit-template-next-supabase /tmp/speckit-template-next-supabase \
+  && cd /tmp/speckit-template-next-supabase \
   && pnpm docs:gen && pnpm rtm:build
 ```
 

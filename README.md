@@ -13,6 +13,15 @@
 
 ---
 
+## Link hub
+
+- [Agent front door](./AGENTS.md) — preservation policy, prompts, and run commands.
+- [Spec + generated docs](./docs/specs/generated/spec-latest.md) — source of truth with orchestration + brief siblings.
+- [Requirements Traceability Matrix](./docs/specs/generated/rtm-latest.md) — `REQ-*` coverage map.
+- [Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md) — maintainer checklist for drift, catalog, and mode policy gates.
+
+---
+
 ## What’s inside
 
 - **Single source of truth** at `.speckit/spec.yaml` → `srs/app.yaml`
@@ -101,7 +110,7 @@ Once you've scaffolded an app, run its scripts with `pnpm --filter apps/<name> <
 
 ### Local (as a repo template)
 ```bash
-speckit template use https://github.com/airnub/next-supabase-speckit-template ./starter
+speckit template use https://github.com/airnub/speckit-template-next-supabase ./starter
 ```
 - You’ll be prompted for variables from `template.vars.json`.
 - `postInit` (from `template.json`) runs: `pnpm install`, `pnpm docs:gen`, `pnpm rtm:build`.
@@ -109,9 +118,9 @@ speckit template use https://github.com/airnub/next-supabase-speckit-template ./
 
 ### Manual QA (import flow)
 ```bash
-rm -rf /tmp/next-supabase-template \
- && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
- && cd /tmp/next-supabase-template \
+rm -rf /tmp/speckit-template-next-supabase \
+ && speckit template use https://github.com/airnub/speckit-template-next-supabase /tmp/speckit-template-next-supabase \
+ && cd /tmp/speckit-template-next-supabase \
  && pnpm docs:gen && pnpm rtm:build
 ```
 - Confirm prompts for: `REPO_NAME`, `APP_TITLE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
@@ -138,6 +147,12 @@ This template mirrors **Speckit’s conventions** to prevent drift:
 - **`tests.yml`** — runs Playwright (`@REQ-*` tags); optional aXe/Lighthouse behind flags
 
 See **[Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md)** for file paths, CODEOWNERS, labeler rules, and starter workflow YAML.
+
+---
+
+## Drift Guardrails
+
+Review **[docs/internal/DRIFT-GUARDRAILS.md](./docs/internal/DRIFT-GUARDRAILS.md)** before merging changes that touch the spec, generated docs, or catalog bundle. It’s a copy‑paste maintainer checklist covering drift detection, catalog label gates, mode policy gates, and review sign‑offs so the Next.js + Supabase wiring never drifts from the published template.
 
 ---
 
@@ -222,9 +237,9 @@ No. Import copies files **as‑is** (with variable interpolation), runs `postIni
 Run the bundled flow and confirm outputs match the generated docs:
 
 ```bash
-rm -rf /tmp/next-supabase-template \
-  && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
-  && cd /tmp/next-supabase-template \
+rm -rf /tmp/speckit-template-next-supabase \
+  && speckit template use https://github.com/airnub/speckit-template-next-supabase /tmp/speckit-template-next-supabase \
+  && cd /tmp/speckit-template-next-supabase \
   && pnpm docs:gen && pnpm rtm:build
 ```
 
