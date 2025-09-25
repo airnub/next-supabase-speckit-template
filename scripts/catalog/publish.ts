@@ -18,7 +18,7 @@ if (!srsPath || !fs.existsSync(srsPath)) {
 }
 
 const srs = yaml.load(fs.readFileSync(srsPath, 'utf8')) as any;
-const metaVersion = (srs?.meta?.version && typeof srs.meta.version === 'string') ? srs.meta.version : '0.0.1';
+const metaVersion = (srs?.meta?.version && typeof srs.meta.version === 'string') ? srs.meta.version : '0.1.0';
 
 const requiredDocs = [
   ['docs/specs/generated/spec-latest.md', 'docs/specs/generated/spec-latest.md'],

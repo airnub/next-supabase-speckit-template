@@ -2,13 +2,13 @@
   {
     "commit": "2c5a1b8365cc9780eaccb7829abbfdb75e9740e3",
     "generated_at": "2025-09-25T13:01:13.436Z",
-    "version": "0.4.0",
+    "version": "0.1.0",
     "srs": "srs/app.yaml"
   },
   {
     "commit": "WORKTREE",
     "generated_at": "2025-09-25T13:05:22.871Z",
-    "version": "0.4.0",
+    "version": "0.1.0",
     "srs": "srs/app.yaml"
   }
 ]

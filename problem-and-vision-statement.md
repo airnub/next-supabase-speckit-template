@@ -57,7 +57,7 @@ This template aims to scale from a single developer to **enterprise teams** (dev
   ```yaml
   meta:
     title: "{{APP_TITLE}}"
-    version: "0.0.1"
+    version: "0.1.0"
     repo: "{{REPO_NAME}}"
     prefix: "{{APP_PREFIX}}"
     org: "{{ORG_NAME}}"
@@ -87,9 +87,9 @@ This template aims to scale from a single developer to **enterprise teams** (dev
 
 ### 4.2 Generators (`scripts/spec-gen.ts`)
 - Emits **versioned** docs and **stable aliases**:
-  - `docs/specs/generated/app-spec-v0.0.1.md` → `spec-latest.md`
-  - `coding-agent-brief-v0.0.1.md` → `coding-agent-brief-latest.md`
-  - `orchestration-plan-v0.0.1.md` → `orchestration-plan-latest.md`
+  - `docs/specs/generated/app-spec-v0.1.0.md` → `spec-latest.md`
+  - `coding-agent-brief-v0.1.0.md` → `coding-agent-brief-latest.md`
+  - `orchestration-plan-v0.1.0.md` → `orchestration-plan-latest.md`
 - Optionally refreshes a committed `AGENTS.md` front door that always points to the `*-latest.md` files.
 - Uses **Spectral** to lint SRS structure and IDs.
 
@@ -175,9 +175,9 @@ This template aims to scale from a single developer to **enterprise teams** (dev
 ---
 
 ## 9) Roadmap (High‑Level)
-1. **v0.3** (current): Docusaurus site, stable aliases, SRS validator, RTM builder, `AGENTS.md` front door, Run Agent action, AI guardrails pack (gated).
-2. **v0.4**: Optional Allure integration + OTel trace IDs in agent runs; richer RTM (evidence linking by file/line); improved ADR templates.
-3. **v0.5**: Pluggable `custom_sections` registry for domain‑specific docs; profile presets for common app shapes.
+1. **v0.1** (current): Docusaurus site, stable aliases, SRS validator, RTM builder, `AGENTS.md` front door, Run Agent action, AI guardrails pack (gated).
+2. **v0.2**: Optional Allure integration + OTel trace IDs in agent runs; richer RTM (evidence linking by file/line); improved ADR templates.
+3. **v0.3**: Pluggable `custom_sections` registry for domain‑specific docs; profile presets for common app shapes.
 4. **v1.0**: Enterprise hardening—policy checks, secret scanning hooks, consolidated dashboard, and guide rails for multi‑repo programs.
 
 ---
