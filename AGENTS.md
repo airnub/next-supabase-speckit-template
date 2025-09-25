@@ -129,4 +129,3 @@ This file is the **single, safe entry point** to run coding agents for this temp
 ### Single‑line “Run me” prompt (for UI buttons)
 
 > **Implement & publish the Next‑Supabase Speckit Template**: add `.speckit/spec.yaml` (dialect → `srs/app.yaml`), model all platform‑specific requirements in `srs/app.yaml`, ensure `pnpm docs:gen` produces **Spec/Brief/Orchestration Plan** with AC + embedded Agent Prompt; build **RTM**; generate `.speckit/catalog/next-supabase/**` (manifest, templates, generation‑manifest); add `speckit-verify`, catalog label gate, and Mode Policy Gate; keep **all opinionated Next.js/Supabase details** intact; verify manual QA (`speckit template use …` + postInit).
-
