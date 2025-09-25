@@ -1,0 +1,9 @@
+# .speckit/spec.yaml
+version: 1
+source:
+  srs: srs/app.yaml
+  dialect:
+    id: speckit.v1
+    version: 1.0.0
+adapters:
+  - owasp.asvs.v4

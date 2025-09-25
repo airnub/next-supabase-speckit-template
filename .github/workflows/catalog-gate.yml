@@ -1,0 +1,31 @@
+name: catalog-gate
+
+on:
+  pull_request:
+    paths:
+      - '.speckit/catalog/**'
+      - '.github/workflows/catalog-gate.yml'
+
+jobs:
+  require-label:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            catalog:
+              - '.speckit/catalog/**'
+      - name: Require catalog:allowed label
+        if: steps.changes.outputs.catalog == 'true'
+        uses: mheap/github-action-required-labels@v3
+        with:
+          mode: exactly
+          labels: catalog:allowed
+          fail_on_missing: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}

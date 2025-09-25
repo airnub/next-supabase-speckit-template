@@ -59,7 +59,9 @@ corepack enable
 pnpm install
 pnpm docs:gen
 pnpm rtm:build
-pnpm docs:serve   # dev server
+pnpm catalog:publish   # refresh .speckit/catalog bundle
+pnpm test:acceptance  # Playwright + requirement tags
+pnpm docs:serve   # docs dev server
 # or
 pnpm docs:build   # static build at docs/website/build
 ```
@@ -76,7 +78,18 @@ pnpm docs:build   # static build at docs/website/build
 ```bash
 pnpm create next-app apps/web --use-pnpm --typescript --eslint
 ```
+Run `pnpm speckit:verify` to confirm docs match the SRS before pushing.
 
+These commands manage the documentation and verification toolchain only.
+
+## CI & Policy Gates
+
+- `speckit-verify` ensures `pnpm docs:gen` + `pnpm rtm:build` leave no git diff.
+- `tests.yml` runs `pnpm test:acceptance` with Playwright tagged by `@REQ-*`.
+- `catalog-gate.yml` blocks merges touching `.speckit/catalog/**` without the `catalog:allowed` label.
+- `mode-policy-gate.yml` requires the `mode-change` label for `.speckit/spec.yaml`, `srs/app.yaml`, or template policy edits.
+
+Once you've scaffolded an app, run its scripts with `pnpm --filter apps/<name> <command>` alongside the workflows above.
 - Replace `web` with your app name.
 - Add Supabase deps (e.g., `@supabase/supabase-js`, auth helpers) and envs.
 - Expose scripts like `dev`, `lint`, `test` in `apps/<name>/package.json`.
@@ -205,5 +218,20 @@ No. Import copies files **as‑is** (with variable interpolation), runs `postIni
 ---
 
 ## License
+
+Run the bundled flow and confirm outputs match the generated docs:
+
+```bash
+rm -rf /tmp/next-supabase-template \
+  && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
+  && cd /tmp/next-supabase-template \
+  && pnpm docs:gen && pnpm rtm:build
+```
+
+You should observe:
+
+- Prompts for `REPO_NAME`, `APP_TITLE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
+- `postInit` runs `pnpm install`, `pnpm docs:gen`, and `pnpm rtm:build`.
+- `docs/specs/generated/` contains the regenerated Spec, Brief, Plan, and RTM with placeholders replaced.
 
 MIT — see `LICENSE`.

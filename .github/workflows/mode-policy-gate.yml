@@ -1,0 +1,37 @@
+name: mode-policy-gate
+
+on:
+  pull_request:
+    paths:
+      - '.speckit/spec.yaml'
+      - 'srs/**'
+      - 'template.json'
+      - 'template.vars.json'
+      - '.github/workflows/mode-policy-gate.yml'
+
+jobs:
+  require-label:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            policy:
+              - '.speckit/spec.yaml'
+              - 'srs/**'
+              - 'template.json'
+              - 'template.vars.json'
+      - name: Require mode-change label
+        if: steps.changes.outputs.policy == 'true'
+        uses: mheap/github-action-required-labels@v3
+        with:
+          mode: exactly
+          labels: mode-change
+          fail_on_missing: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
