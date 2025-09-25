@@ -5,6 +5,8 @@ on:
     paths:
       - '.speckit/spec.yaml'
       - 'srs/**'
+      - '.spectral.yaml'
+      - 'policy/**'
       - 'template.json'
       - 'template.vars.json'
       - '.github/workflows/mode-policy-gate.yml'
@@ -25,6 +27,8 @@ jobs:
             policy:
               - '.speckit/spec.yaml'
               - 'srs/**'
+              - '.spectral.yaml'
+              - 'policy/**'
               - 'template.json'
               - 'template.vars.json'
       - name: Require mode-change label

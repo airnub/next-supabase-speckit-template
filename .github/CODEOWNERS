@@ -1,5 +1,6 @@
 # Guard core template metadata
-/template.json            @airnub
-/template.vars.json       @airnub
-/.speckit/**              @airnub
-/.spectral.yaml           @airnub
+/.speckit/**              @maintainers
+/.spectral.yaml           @maintainers
+/policy/**                @maintainers
+/template.json            @maintainers
+/template.vars.json       @maintainers
