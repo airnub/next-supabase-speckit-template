@@ -49,3 +49,19 @@ pnpm docs:build   # static build in docs/website/build
 These commands manage the documentation and verification toolchain only. Once you've scaffolded an app, run its scripts with `pnpm --filter apps/<name> <command>` alongside the workflows above.
 
 > ℹ️ The repository is configured as a [pnpm workspace](https://pnpm.io/workspaces). Running `pnpm install` at the root installs the Docusaurus app in `docs/website` along with the rest of the tooling, so you no longer need to run a separate install inside the docs folder.
+
+## Use with Speckit
+
+Local (as a repo template):
+```sh
+speckit template use https://github.com/airnub/next-supabase-speckit-template ./starter
+```
+
+The CLI will prompt from `template.vars.json`, copy files, then run the `postInit` commands from `template.json` (`pnpm install`, `pnpm docs:gen`, `pnpm rtm:build`). You can also drop this repo under another project's `.speckit/templates/app/next-supabase` and it will appear in the picker. See Speckit's README for template manifests, variable prompts, and post-init commands.
+
+## Manual QA (Speckit)
+
+1. `rm -rf /tmp/next-supabase-template && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template`
+2. Confirm the CLI prompts for `REPO_NAME`, `APP_TITLE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` (from `template.vars.json`).
+3. Verify `postInit` ran: `pnpm docs:gen` and `pnpm rtm:build`.
+4. Open `/tmp/next-supabase-template/docs/specs/...` and see placeholders replaced.
