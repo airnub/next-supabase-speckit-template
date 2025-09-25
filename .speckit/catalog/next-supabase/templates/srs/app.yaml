@@ -1,0 +1,659 @@
+meta:
+  version: "0.4.0"
+  app_title: "{{APP_TITLE}}"
+  repo_name: "{{REPO_NAME}}"
+  prefix: "{{APP_PREFIX}}"
+  owners:
+    - platform@yourco.example
+  summary: |
+    Opinionated Next.js 15 + Supabase template wired for RLS, Vault, next-intl, PWA offline partitions,
+    automated docs, and catalog publishing for Speckit consumers.
+  tags: [nextjs, supabase, rls, vault, next-intl, pwa]
+
+preservation_policy: |
+  1. **Do not strip or generalize** platform-specific content. Keep Next.js + Supabase architecture decisions,
+     **RLS policies**, **Vault** usage, i18n choices, performance/security gotchas, and ADRs **intact** in files
+     and generated docs.
+  2. When applying `template.vars.json`, **only** interpolate placeholders. Do **not** remove sections or
+     “sanitize” wording.
+  3. Generation/adapters must **not mutate** template content. If a step would drop details, **stop and fail**
+     with an actionable message.
+  4. The published catalog under `.speckit/catalog/**` is the exact bundle Speckit imports; treat it as
+     **read-only** (PR label required to change).
+
+security:
+  auth_flows: [password, magic_link, oauth]
+  password_policy: "Supabase Auth password minimum 14 chars, zxcvbn score ≥ 3"
+  session_config: "Use Supabase Auth session cookies with refresh rotation every 60 minutes"
+  roles:
+    - id: anon
+      description: "Unauthenticated visitor; limited to marketing pages, installable PWA shell, offline cache warmup"
+      capabilities:
+        - access_public_content
+        - bootstrap_offline_cache
+    - id: user
+      description: "Authenticated Supabase user with profile row and notification preferences"
+      capabilities:
+        - manage_profile
+        - submit_content
+        - manage_notification_preferences
+        - install_pwa
+    - id: admin
+      description: "Operations persona with Supabase group role = 'admin' and elevated console"
+      capabilities:
+        - read_audit_log
+        - manage_integrations
+        - impersonate_user_session
+  rls:
+    tables:
+      - name: profiles
+        description: "Stores user metadata, locale, and display preferences"
+        policies:
+          - id: REQ-RLS-001
+            name: "Owner access"
+            action: "select, update"
+            using: "auth.uid() = id"
+            with_check: "auth.uid() = id"
+            notes: "Admins bypass via Postgres role `service_role` running in Vault-backed edge functions"
+      - name: audit_log
+        description: "Immutable log of security-significant events"
+        policies:
+          - id: REQ-RLS-002
+            name: "Admin only"
+            action: "select"
+            using: "role() = 'admin'"
+            with_check: null
+            notes: "Inserts happen via security definer functions only"
+      - name: notification_preferences
+        description: "Channel + quiet hours per user"
+        policies:
+          - id: REQ-RLS-003
+            name: "Owner managed"
+            action: "select, update"
+            using: "auth.uid() = user_id"
+            with_check: "auth.uid() = user_id"
+            notes: "Admins can view aggregated metrics via materialized view"
+      - name: service_worker_cache_states
+        description: "Tracks offline partition revisions per user/device"
+        policies:
+          - id: REQ-RLS-004
+            name: "User partition"
+            action: "select, insert, update"
+            using: "auth.uid() = user_id"
+            with_check: "auth.uid() = user_id"
+            notes: "Anon sessions map to Supabase anonymous user IDs"
+  vault:
+    secrets:
+      - MARKET_DATA_API_KEY
+      - STRIPE_WEBHOOK_SECRET
+      - SUPABASE_SERVICE_ROLE_KEY
+      - RESEND_API_KEY
+      - SLACK_SIGNING_SECRET
+      - SUPABASE_JWT_SECRET
+  audit_logging: enabled
+  security_notes:
+    - "Edge functions call Supabase using service role from Vault; never embed in client bundles."
+    - "All Next.js server actions enforce `createServerClient` with `supabaseClient.auth.getUser()` guards."
+    - "Admin console routes behind middleware verifying `role() = 'admin'` via RLS-friendly RPC."
+
+internationalization:
+  locales: [en, ga]
+  default_locale: en
+  framework: next-intl
+  routing_strategy: "Domain default + `/ga` subpath for Irish locale"
+  translation_pipeline: "Source strings live in `/messages/en.json`; localized exports via Phrase CLI with lint step"
+  locale_detection: "Detect via `accept-language`, fallback to stored profile locale, persist in Supabase profile row"
+  formatting: "Use `Intl.DateTimeFormat` with timezone from profile; default to `America/New_York`."
+
+performance:
+  budgets:
+    ttfb_ms: 200
+    lcp_ms: 2500
+    cls: 0.1
+    inp_ms: 200
+  caching:
+    - edge-cache
+    - stale-while-revalidate
+  images:
+    - next/image
+  database:
+    connection_pooling: "Use PgBouncer transaction mode; min 4 / max 10 connections"
+    indexes:
+      - "profiles locale + updated_at"
+      - "audit_log event_type + created_at desc"
+  metrics:
+    collection: "Vercel Web Vitals, Supabase logs piped to Logflare, OTel traces via `@vercel/otel`"
+    alerts:
+      - "PagerDuty alert when LCP p95 > 3s for 3 consecutive deploys"
+      - "Slack alert when audit_log > 50 WARN entries per hour"
+  security_performance_gotchas:
+    - "Never disable HTTP/2 server push on PWA assets; rely on Next.js asset manifest."
+    - "Ensure Supabase row level checks stay index-supported to avoid full table scans."
+
+pwa_offline:
+  partitions: [auth, content, assets]
+  offline_strategy:
+    auth: "Cache Supabase session tokens using `IndexedDB` via Supabase Auth helpers; refresh in background"
+    content: "Use App Router `revalidateTag` with Service Worker fallback to per-user caches"
+    assets: "Precache Next.js build assets via Workbox `precacheAndRoute` with SWR"
+  push_notifications: [webpush]
+  manifest:
+    name: "{{APP_TITLE}}"
+    short_name: "{{APP_PREFIX}}"
+    theme_color: "#0A0A0A"
+    background_color: "#FFFFFF"
+    start_url: "/"
+    display: standalone
+  service_worker:
+    file: "public/sw.ts"
+    notes:
+      - "Gate install prompt behind user gesture and Supabase profile `pwa_opt_in` flag."
+      - "Service worker isolates caches per Supabase user id using cache keys `{{APP_PREFIX}}-auth-${userId}`."
+
+integrations:
+  providers:
+    social: [github, google]
+    webhooks: [stripe, slack]
+    analytics: [posthog]
+  admin_console: minimal
+  supabase_functions:
+    - name: syncStripeCustomer
+      description: "Ensures Stripe metadata stays in sync with Supabase profile"
+      triggers: [stripe.webhook.customer.updated]
+    - name: sendSlackAlert
+      description: "Posts to Slack when audit severity >= ERROR"
+      triggers: [database.audit_log.insert]
+  notifications:
+    transports:
+      - email_resend
+      - slack_dm
+      - webpush
+    preferences: "Stored in notification_preferences with quiet hours and channel opt-in"
+  og_image:
+    generator: "@vercel/og"
+    defaults:
+      title: "{{APP_TITLE}}"
+      description: "Realtime Supabase + Next.js starter with enforced RLS"
+      background: "app/og/background.png"
+
+observability:
+  logging: "Structured JSON logs via `pino` streamed to Vercel + Supabase Logflare"
+  tracing: "`@vercel/otel` instrumentation with Supabase function spans exported to Honeycomb"
+  incident_response: "Runbooks stored in `docs/ops/`, escalate via PagerDuty rotation"
+
+manual_qa:
+  command: |
+    rm -rf /tmp/next-supabase-template \
+      && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
+      && cd /tmp/next-supabase-template \
+      && pnpm docs:gen && pnpm rtm:build
+  expectations:
+    - "Prompts for {{REPO_NAME}}, {{APP_TITLE}}, Supabase URL + anon key during init"
+    - "`postInit` runs pnpm install + docs generation"
+    - "`docs/specs/generated/**` exist with placeholders replaced"
+
+agent_prompt: |
+  # Coding Agent Prompt — **next‑supabase‑speckit‑template**
+  
+  > **Goal:** Turn this repository into a **publishable, community‑importable Speckit template** that preserves all opinionated, platform‑specific decisions (Next.js + Supabase, **RLS**, **Vault**, i18n, performance/security gotchas, ADRs, CI gates). **Do not genericize or discard any platform detail.**
+  
+  This prompt is designed to be pasted into your coding agent. It is **idempotent**: repeated runs must converge with no spurious diffs.
+  
+  ---
+  
+  ## 0) Guardrails & Non‑Negotiables
+  
+  1. **Preservation Policy**
+  
+     * Keep platform‑specific content **verbatim** across files and generated docs.
+     * Variable interpolation may replace placeholders only; **no redaction** or “sanitization.”
+     * If any generation/adaptor step would lose detail, **halt and fail** with a clear error.
+     * Treat `.speckit/catalog/**` as **read‑only** in PRs (label gate required).
+  2. **Single Source of Truth**
+  
+     * `.speckit/spec.yaml` declares a dialect and points at `srs/app.yaml`.
+     * All docs under `docs/specs/generated/**` are deterministically produced from the SRS.
+  3. **Evidence & Traceability**
+     
+     * Build an **RTM** mapping `REQ-*` → docs/tests/code.
+     * Tests in `tests/**` are tagged with the relevant `@REQ-...` IDs.
+  4. **CI Gates**
+     
+     * `speckit-verify` (drift between SRS and generated docs fails the build).
+     * Label gates: `catalog:allowed` for `.speckit/catalog/**`; `mode-change` for mode/dialect/policy edits.
+  
+  ---
+  
+  ## 1) Repository Snapshot (assumptions)
+  
+  * Root contains: `.speckit/`, `.github/` (workflows), `docs/`, `tests/`, `scripts/`, `.spectral.yaml`, `template.json`, `template.vars.json`, `AGENTS.md`, `README.md`.
+  * The workspace is **pnpm** based; docs site under `docs/website`.
+  
+  > If any item is missing, create it in the steps below.
+  
+  ---
+  
+  ## 2) Tasks (perform in order)
+  
+  ### Task A — Lock the Dialect & SRS
+  
+  1. Create/ensure `.speckit/spec.yaml` with:
+  
+  ```yaml
+  # .speckit/spec.yaml
+  version: 1
+  source:
+    srs: srs/app.yaml
+    dialect:
+      id: speckit.v1
+      version: 1.0.0
+  # Optional: adapters you support without mutating templates
+  adapters:
+    - owasp.asvs.v4  # normalization only; must not alter template content
+  ```
+  
+  2. Create/ensure `srs/app.yaml` with a **first‑class model** of your “golden” sections:
+  
+  ```yaml
+  # srs/app.yaml (skeleton; extend with your details)
+  meta:
+    app_title: "{{APP_TITLE}}"
+    repo_name: "{{REPO_NAME}}"
+    owners: ["platform@yourco.example"]
+  
+  security:
+    auth_flows: [password, magic_link, oauth]
+    roles:
+      - id: anon
+      - id: user
+      - id: admin
+    rls:
+      tables:
+        - name: profiles
+          policies:
+            - id: REQ-RLS-001
+              check: "auth.uid() = id"
+        - name: audit_log
+          policies:
+            - id: REQ-RLS-002
+              check: "role() = 'admin'"
+    vault:
+      secrets: [MARKET_DATA_API_KEY]
+    audit_logging: enabled
+  
+  internationalization:
+    locales: [en, ga]
+    default_locale: en
+    framework: next-intl
+  
+  performance:
+    budgets:
+      ttfb_ms: 200
+      lcp_ms: 2500
+    caching: [edge-cache, stale-while-revalidate]
+    images: [next/image]
+  
+  pwa_offline:
+    partitions: [auth, content, assets]
+    push_notifications: [webpush]
+  
+  integrations:
+    providers:
+      social: [github, google]
+      webhooks: [stripe, slack]
+    admin_console: minimal
+  
+  acceptance_criteria:
+    - id: REQ-SPEC-001
+      text: "Spec, Coding Agent Brief, Orchestration Plan are generated and up to date."
+    - id: REQ-RLS-001
+      text: "Profiles are readable only by owner (RLS policy in place)."
+    - id: REQ-PWA-001
+      text: "App installs as PWA; offline partitioning works for core views."
+  
+  milestones:
+    - id: M1-spec-docs
+      title: "Spec/Brief/Plan generation wired"
+    - id: M2-rtm-tests
+      title: "RTM + tagged tests in place"
+    - id: M3-catalog
+      title: "Catalog published under .speckit/catalog/next-supabase"
+  ```
+  
+  > Keep adding your real, opinionated decisions (RLS predicates, Vault secrets list, i18n locales, perf targets, provider DI, OG images, notifications, admin scope). These must round‑trip into generated docs.
+  
+  ---
+  
+  ### Task B — Wire Generation (3 artifacts)
+  
+  1. Ensure `pnpm docs:gen` generates to `docs/specs/generated/**`:
+  
+     * `spec-latest.md`
+     * `coding-agent-brief-latest.md` (**must embed this Agent Prompt + AC checklist**)
+     * `orchestration-plan-latest.md`
+  
+  2. Make generation **deterministic** (same input → same output; second run has no diffs).
+  
+  3. Update `AGENTS.md` (already present) to link the above files and restate the **Preservation Policy**.
+  
+  ---
+  
+  ### Task C — Build RTM & Tests
+  
+  1. `pnpm rtm:build` must produce `docs/specs/generated/rtm-latest.md` mapping all `REQ-*`.
+  2. In `tests/`, ensure Playwright tests tag scenarios with `@REQ-...` IDs.
+  3. (Optional) Add **axe** and **Lighthouse** jobs gated behind env flags for PR runs.
+  
+  ---
+  
+  ### Task D — Publish the Catalog (importable by Speckit)
+  
+  Create the import bundle under `.speckit/catalog/next-supabase/`:
+  
+  ```
+  .speckit/
+    catalog/
+      next-supabase/
+        manifest.json               # name, version, dialect, provenance
+        templates/                  # rendered import bundle (specs, prompts, scaffolds)
+        generation-manifest.json    # append-only provenance
+  ```
+  
+  * Enforce **label gate** on this path (`catalog:allowed`).
+  * Never post-process this bundle in a way that drops platform details.
+  
+  Example `manifest.json` starter:
+  
+  ```json
+  {
+    "name": "next-supabase",
+    "version": "0.1.0",
+    "dialect": { "id": "speckit.v1", "version": "1.0.0" },
+    "provenance": { "repo": "airnub/next-supabase-speckit-template", "generator": "speckit" }
+  }
+  ```
+  
+  ---
+  
+  ### Task E — Template Manifest & Vars
+  
+  * **`template.json`**: ensure `postInit` includes `pnpm install`, `pnpm docs:gen`, `pnpm rtm:build`.
+  * **`template.vars.json`**: include `REPO_NAME`, `APP_TITLE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and any SRS-dependent placeholders.
+  
+  ---
+  
+  ### Task F — CI & Policy Gates
+  
+  Create/verify workflows in `.github/workflows/`:
+  
+  1. **`speckit-verify.yml`** — fails if generated docs drift from SRS.
+  2. **`catalog-gate.yml`** — requires `catalog:allowed` for changes under `.speckit/catalog/**`.
+  3. **`mode-policy-gate.yml`** — requires `mode-change` for edits to modes/dialect/policy files.
+  4. **`tests.yml`** — runs Playwright; optionally runs axe/Lighthouse behind flags.
+  
+  > Keep jobs fast, cache pnpm, and ensure they run on PRs from forks with hardened permissions.
+  
+  ---
+  
+  ### Task G — Manual QA (document in README)
+  
+  Provide steps (and verify they pass):
+  
+  ```bash
+  rm -rf /tmp/next-supabase-template \
+    && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
+    && cd /tmp/next-supabase-template \
+    && pnpm docs:gen && pnpm rtm:build
+  ```
+  
+  * Confirm prompts for vars, `postInit` executed, and `docs/specs/generated/**` exist with placeholders replaced.
+  
+  ---
+  
+  ## 3) Acceptance Criteria (must all pass)
+  
+  * **Source of Truth**: `.speckit/spec.yaml` references `srs/app.yaml` and declares dialect; two consecutive `pnpm docs:gen` runs produce **no diffs**.
+  * **3 Docs present** with embedded **Agent Prompt + AC checklists** and all platform specifics retained.
+  * **RTM present** (`docs/specs/generated/rtm-latest.md`) covering all `REQ-*`.
+  * **Catalog bundle** exists under `.speckit/catalog/next-supabase/**` with `manifest.json` and `generation-manifest.json` (append-only) and is **label-gated**.
+  * **CI**: `speckit-verify` passes; label gates enforced; tests run; optional a11y/perf jobs toggle via flags.
+  * **Preservation Policy enforced** via a lightweight check (e.g., ensure key sections in generated docs are non-empty; fail with remediation steps if missing).
+  
+  ---
+  
+  ## 4) Commands Cheat-Sheet
+  
+  ```bash
+  # one-time
+  corepack enable && pnpm install
+  
+  # generate docs from SRS
+  pnpm docs:gen
+  
+  # build traceability
+  pnpm rtm:build
+  
+  # publish/update catalog bundle (script should compile + stage to .speckit/catalog/next-supabase)
+  pnpm catalog:publish
+  
+  # run tests
+  pnpm test:acceptance
+  ```
+  
+  > Add `catalog:publish`, `test:acceptance`, etc. to `package.json` if not present.
+  
+  ---
+  
+  ## 5) Failure Handling
+  
+  * If generation would drop platform detail, **abort** and write an error explaining which section was at risk; never auto-generalize.
+  * If CI drift occurs, re-run generation and **commit regenerated docs**; investigate SRS/partials for nondeterminism.
+  
+  ---
+  
+  ## 6) Outputs to Attach to the PR (Artifacts)
+  
+  * `.speckit/spec.yaml` and `srs/app.yaml`
+  * `docs/specs/generated/{spec-latest.md,coding-agent-brief-latest.md,orchestration-plan-latest.md,rtm-latest.md}`
+  * `.speckit/catalog/next-supabase/{manifest.json,templates/**,generation-manifest.json}`
+  * Updated workflows in `.github/workflows/`
+  * Proof of label gates (screenshot or workflow run link)
+  
+  ---
+  
+  ## 7) Single-Line “Run-Me” Prompt (for buttons/shortcuts)
+  
+  > Implement & publish the **Next-Supabase Speckit Template**: add `.speckit/spec.yaml` (dialect → `srs/app.yaml`), fully model platform specifics in `srs/app.yaml`, ensure `pnpm docs:gen` yields **Spec/Brief/Orchestration Plan** with AC + embedded Agent Prompt; build **RTM**; publish `.speckit/catalog/next-supabase/**` (manifest, templates, generation-manifest); add `speckit-verify`, catalog label gate, and Mode Policy Gate; keep **all opinionated Next.js/Supabase details** intact; verify Manual QA (`speckit template use …` + postInit).
+
+acceptance_criteria:
+  - id: REQ-SPEC-001
+    text: "Spec, Coding Agent Brief, and Orchestration Plan regenerate deterministically from srs/app.yaml."
+    verification:
+      docs:
+        - docs/specs/generated/spec-latest.md
+        - docs/specs/generated/coding-agent-brief-latest.md
+        - docs/specs/generated/orchestration-plan-latest.md
+      tests:
+        - tests/spec-artifacts.spec.ts
+      code:
+        - scripts/spec-gen.ts
+        - scripts/rtm/build-rtm.ts
+  - id: REQ-RLS-001
+    text: "Profiles are readable and writable only by the owning Supabase user via enforced RLS."
+    verification:
+      docs:
+        - docs/specs/generated/spec-latest.md
+      tests:
+        - tests/spec-artifacts.spec.ts
+      code:
+        - srs/app.yaml
+        - supabase/migrations/ (expected in downstream repos)
+  - id: REQ-RLS-002
+    text: "Audit log visibility is restricted to admin role via RLS and admin console guardrails."
+    verification:
+      docs:
+        - docs/specs/generated/spec-latest.md
+      tests:
+        - tests/spec-artifacts.spec.ts
+      code:
+        - srs/app.yaml
+  - id: REQ-PWA-001
+    text: "PWA install flow partitions auth/content/assets caches and respects Supabase profile opt-in."
+    verification:
+      docs:
+        - docs/specs/generated/spec-latest.md
+        - docs/specs/generated/orchestration-plan-latest.md
+      tests:
+        - tests/spec-artifacts.spec.ts
+      code:
+        - public/sw.ts (consumer responsibility)
+  - id: REQ-CATALOG-001
+    text: "Catalog bundle under .speckit/catalog/next-supabase ships manifest, templates, and provenance with label gate."
+    verification:
+      docs:
+        - docs/specs/generated/orchestration-plan-latest.md
+      tests:
+        - tests/spec-artifacts.spec.ts
+      code:
+        - scripts/catalog/publish.ts
+        - .github/workflows/catalog-gate.yml
+
+milestones:
+  - id: M1-spec-docs
+    title: "Spec/Brief/Plan generation wired"
+  - id: M2-rtm-tests
+    title: "RTM + tagged tests in place"
+  - id: M3-catalog
+    title: "Catalog published under .speckit/catalog/next-supabase"
+  - id: M4-ci-gates
+    title: "CI label + drift gates enforced"
+
+documents:
+  spec:
+    front_matter:
+      id: next-supabase-spec
+      title: "{{APP_TITLE}} Platform Specification"
+      sidebar_label: Platform Spec
+      slug: /specs/next-supabase-spec
+      description: "Authoritative Next.js + Supabase platform spec with RLS, Vault, PWA, and catalog publishing."
+    heading: "# {{APP_TITLE}} — Platform Specification"
+    intro: |
+      _Source: srs/app.yaml · Generated from Speckit SRS · Owners: {{meta.owners | first}}_
+      
+      This document is the canonical contract for the Next.js + Supabase template. It preserves every
+      opinionated decision—Supabase RLS predicates, Vault secret inventory, next-intl locales, PWA cache
+      partitions, performance budgets, CI label gates, and catalog expectations.
+    sections:
+      - number: 1
+        title: "Architecture Overview"
+        body: |
+          {{ARCHITECTURE_OVERVIEW}}
+      - number: 2
+        title: "Security & Supabase Policies"
+        body: |
+          {{SECURITY_SECTION}}
+      - number: 3
+        title: "Internationalization"
+        body: |
+          {{I18N_SECTION}}
+      - number: 4
+        title: "Performance & Operational Budgets"
+        body: |
+          {{PERFORMANCE_SECTION}}
+      - number: 5
+        title: "PWA Offline Strategy"
+        body: |
+          {{PWA_SECTION}}
+      - number: 6
+        title: "Integrations & Notifications"
+        body: |
+          {{INTEGRATIONS_SECTION}}
+      - number: 7
+        title: "Observability & Incident Response"
+        body: |
+          {{OBSERVABILITY_SECTION}}
+      - number: 8
+        title: "Developer Workflow & Manual QA"
+        body: |
+          {{DEV_WORKFLOW_SECTION}}
+      - number: 9
+        title: "Acceptance Criteria"
+        body: |
+          {{ACCEPTANCE_CRITERIA_LIST}}
+      - number: 10
+        title: "Preservation Policy"
+        body: |
+          {{PRESERVATION_POLICY}}
+    closing: |
+      _Deterministic output:_ run `pnpm docs:gen` twice; expect no diffs. Validate RTM via `pnpm rtm:build`.
+  brief:
+    heading: "# {{APP_TITLE}} — Coding Agent Brief"
+    intro: |
+      Generated from srs/app.yaml. Follow every guardrail; treat this brief as binding.
+    sections:
+      - title: "Mission"
+        body: |
+          Deliver the Next.js + Supabase template without losing platform-specific intent. Use Supabase clients
+          with enforced RLS, wire Vault-backed secrets, and honor the manual QA scenario.
+      - title: "Preservation Policy"
+        body: |
+          {{PRESERVATION_POLICY}}
+      - title: "Acceptance Criteria Checklist"
+        body: |
+          {{ACCEPTANCE_CRITERIA_CHECKLIST}}
+      - title: "Environment & Secrets"
+        body: |
+          {{ENVIRONMENT_SECTION}}
+      - title: "Deliverables"
+        body: |
+          - Regenerate Spec, Brief, Plan (`pnpm docs:gen`) and RTM (`pnpm rtm:build`).
+          - Update catalog bundle via `pnpm catalog:publish` when specs change.
+          - Ensure Playwright tests tagged with `@REQ-*` verify docs + catalog integrity.
+      - title: "Agent Prompt (copy-paste)"
+        body: |
+          {{AGENT_PROMPT}}
+    closing: |
+      Submit PR with passing `speckit-verify`, `tests.yml`, and label gates satisfied.
+  plan:
+    heading: "# {{APP_TITLE}} — Orchestration Plan"
+    intro: |
+      Sequenced plan aligning implementation milestones with CI and catalog deliverables.
+    sections:
+      - title: "Documents of Record"
+        body: |
+          - SRS: `srs/app.yaml`
+          - Generated outputs: `docs/specs/generated/*.md`
+          - Catalog bundle: `.speckit/catalog/next-supabase/`
+      - title: "Stack & Performance Guardrails"
+        body: |
+          {{STACK_SECTION}}
+      - title: "Security & RLS Checklist"
+        body: |
+          {{SECURITY_SUMMARY_BULLETS}}
+      - title: "Internationalization & Content"
+        body: |
+          {{I18N_SUMMARY_BULLETS}}
+      - title: "PWA & Offline Operations"
+        body: |
+          {{PWA_SUMMARY_BULLETS}}
+      - title: "Integrations & Notifications"
+        body: |
+          {{INTEGRATIONS_SUMMARY_BULLETS}}
+      - title: "Catalog & CI Gates"
+        body: |
+          {{CATALOG_SECTION}}
+      - title: "Manual QA"
+        body: |
+          Execute:
+          ```bash
+          {{MANUAL_QA_COMMAND}}
+          ```
+          Expectations:
+          {{MANUAL_QA_EXPECTATIONS}}
+      - title: "Milestones"
+        body: |
+          {{MILESTONES_SECTION}}
+    closing: |
+      Close out by running `pnpm catalog:publish` and verifying workflows (`speckit-verify`, `catalog-gate`, `mode-policy-gate`, `tests`).
+
+documents_extra_tokens: {}

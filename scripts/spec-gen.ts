@@ -2,318 +2,509 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 
-interface Acceptance { id: string; gwt: string }
-interface Requirement { id: string; title: string; priority?: string; rationale?: string; acceptance: Acceptance[] }
-type KnownProfile = 'minimal'|'webapp'|'game';
-interface Meta {
-  title: string; version: string; repo?: string; prefix?: string; org?: string;
-  profile?: string;
-  features?: Record<string, boolean>;
+type FrontMatter = Record<string, string | number | boolean>;
+interface DocumentSubsection { title?: string; body?: string }
+interface DocumentSection {
+  number?: number | string;
+  title?: string;
+  body?: string;
+  subsections?: DocumentSubsection[];
 }
-interface DocumentSubsection { title: string; body?: string }
-interface DocumentSection { number?: number|string; title: string; body?: string; subsections?: DocumentSubsection[] }
 interface DocumentSpec {
+  front_matter?: FrontMatter;
   heading?: string;
-  file_path?: string;
-  overview?: string;
   intro?: string;
   sections?: DocumentSection[];
-  output_file?: string;
   closing?: string;
-  front_matter?: FrontMatter;
+  output_file?: string;
 }
-type FrontMatter = Record<string, string>
-interface SRS {
-  meta: Meta;
-  requirements: Requirement[];
-  front_matter?: FrontMatter;
-  document?: DocumentSpec;
-  brief?: DocumentSpec;
-  plan?: DocumentSpec;
+interface VerificationLinks {
+  docs?: string[];
+  tests?: string[];
+  code?: string[];
 }
-
-const argv = process.argv.slice(2);
-const getArg = (k: string) => { const i = argv.indexOf(k); return i!==-1 ? argv[i+1] : undefined; };
-const profileOverride = getArg('--profile');
-const featuresOverride = (()=>{ try { return JSON.parse(getArg('--features')||'{}') } catch { return {} } })();
+interface AcceptanceCriterion {
+  id: string;
+  text: string;
+  verification?: VerificationLinks;
+}
+interface Srs {
+  meta?: {
+    version?: string;
+    app_title?: string;
+    repo_name?: string;
+    prefix?: string;
+    owners?: string[];
+    summary?: string;
+    tags?: string[];
+  };
+  preservation_policy?: string;
+  security?: any;
+  internationalization?: any;
+  performance?: any;
+  pwa_offline?: any;
+  integrations?: any;
+  observability?: any;
+  manual_qa?: {
+    command?: string;
+    expectations?: string[];
+  };
+  agent_prompt?: string;
+  acceptance_criteria?: AcceptanceCriterion[];
+  milestones?: { id: string; title: string }[];
+  documents?: {
+    spec?: DocumentSpec;
+    brief?: DocumentSpec;
+    plan?: DocumentSpec;
+  };
+  documents_extra_tokens?: Record<string, string>;
+}
 
 const root = process.cwd();
-const specsDir = path.join(root,'docs/specs');
-const specVersionRegex = /^spec\.v(\d+)\.(\d+)\.(\d+)\.yaml$/;
-const specFiles = fs.readdirSync(specsDir).filter(f=>specVersionRegex.test(f));
-if(!specFiles.length){ console.error('No docs/specs/spec.v*.yaml found'); process.exit(1); }
-const parseVersion = (filename: string) => {
-  const match = filename.match(specVersionRegex);
-  if(!match){ return { major: 0, minor: 0, patch: 0 }; }
-  const [, major, minor, patch] = match;
-  return { major: Number(major), minor: Number(minor), patch: Number(patch) };
+const specsOutputDir = path.join(root, 'docs/specs/generated');
+const configPath = path.join(root, '.speckit/spec.yaml');
+
+if (!fs.existsSync(configPath)) {
+  console.error('Spec generation aborted: missing .speckit/spec.yaml');
+  process.exit(1);
+}
+
+const specConfig = yaml.load(fs.readFileSync(configPath, 'utf8')) as any;
+const srsPath = path.join(root, specConfig?.source?.srs || '');
+if (!srsPath || !fs.existsSync(srsPath)) {
+  console.error('Spec generation aborted: unable to resolve SRS at %s', srsPath || '<undefined>');
+  process.exit(1);
+}
+
+const srs = yaml.load(fs.readFileSync(srsPath, 'utf8')) as Srs;
+
+function ensure(condition: any, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(`Spec generation aborted: ${message}`);
+  }
+}
+
+ensure(srs, 'SRS file empty or invalid');
+const preservationPolicy = (srs.preservation_policy || '').trim();
+ensure(preservationPolicy.length > 0, 'preservation_policy is required to enforce guardrails');
+
+const security = srs.security || {};
+ensure(security.rls && Array.isArray(security.rls.tables) && security.rls.tables.length > 0, 'security.rls.tables must be defined');
+ensure(Array.isArray(security.vault?.secrets) && security.vault.secrets.length > 0, 'security.vault.secrets must list Vault keys');
+
+const intl = srs.internationalization || {};
+ensure(Array.isArray(intl.locales) && intl.locales.length > 0, 'internationalization.locales must be provided');
+
+const performance = srs.performance || {};
+ensure(performance.budgets, 'performance.budgets must be defined');
+
+const pwa = srs.pwa_offline || {};
+ensure(Array.isArray(pwa.partitions) && pwa.partitions.length > 0, 'pwa_offline.partitions must be provided');
+
+const integrations = srs.integrations || {};
+ensure(integrations.providers, 'integrations.providers must be defined');
+
+const observability = srs.observability || {};
+const manualQa = srs.manual_qa || {};
+ensure(typeof manualQa.command === 'string' && manualQa.command.trim().length > 0, 'manual_qa.command must document QA steps');
+
+const acceptance = Array.isArray(srs.acceptance_criteria) ? srs.acceptance_criteria : [];
+ensure(acceptance.length > 0, 'acceptance_criteria must enumerate REQ-* items');
+
+const meta = srs.meta || {};
+const owners = Array.isArray(meta.owners) ? meta.owners : [];
+const firstOwner = owners[0] || 'platform@yourco.example';
+
+const docSpec = srs.documents?.spec;
+const docBrief = srs.documents?.brief;
+const docPlan = srs.documents?.plan;
+ensure(docSpec, 'documents.spec must be defined');
+ensure(docBrief, 'documents.brief must be defined');
+ensure(docPlan, 'documents.plan must be defined');
+
+const repoNameValue = (meta.repo_name && typeof meta.repo_name === 'string') ? meta.repo_name : 'next-supabase-speckit-template';
+const repoSlugSource = repoNameValue.includes('{') ? 'next-supabase' : repoNameValue;
+const repoSlug = repoSlugSource.split('/').pop() || repoSlugSource;
+const safeSlug = repoSlug.toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+const version = (meta.version && typeof meta.version === 'string' && meta.version.length > 0) ? meta.version : '0.0.1';
+
+function fmtList(items: string[], bullet: string = '-') {
+  return items.map((item) => `${bullet} ${item}`).join('\n');
+}
+
+function renderTable(headers: string[], rows: string[][]) {
+  const headerRow = `| ${headers.join(' | ')} |`;
+  const dividerRow = `|${headers.map(() => '---').join('|')}|`;
+  const bodyRows = rows.map((r) => `| ${r.join(' | ')} |`).join('\n');
+  return `${headerRow}\n${dividerRow}\n${bodyRows}`;
+}
+
+function stringify(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value);
+}
+
+function formatCapabilities(capabilities: unknown): string {
+  if (!Array.isArray(capabilities) || !capabilities.length) return '';
+  return capabilities.map((cap) => `    - ${cap}`).join('\n');
+}
+
+const architectureOverviewParts: string[] = [];
+if (meta.summary) {
+  architectureOverviewParts.push(meta.summary.trim());
+}
+architectureOverviewParts.push(
+  '- **Runtime:** Next.js 15 App Router with React Server Components by default; deploy on Vercel edge functions.',
+  '- **Data Layer:** Supabase Postgres + Storage with the RLS policies enumerated below; Supabase Auth for identity.',
+  '- **Secrets:** Supabase Vault issues service-role credentials and third-party API keys for edge functions.',
+  '- **Internationalization:** `next-intl` with locales ' + (Array.isArray(intl.locales) ? intl.locales.join(', ') : 'en') + '.',
+  '- **Offline:** Installable PWA with partitioned caches for auth, content, and assets.',
+  '- **Documentation:** `.speckit/spec.yaml` → `srs/app.yaml` is the single source; `pnpm docs:gen` regenerates this spec, brief, and plan.');
+const architectureOverview = architectureOverviewParts.join('\n');
+
+const rolesMarkdown = (Array.isArray(security.roles) ? security.roles : []).map((role: any) => {
+  const id = stringify(role.id);
+  const description = stringify(role.description);
+  const caps = formatCapabilities(role.capabilities);
+  const details = [`- **${id}** — ${description}`];
+  if (caps) {
+    details.push(caps);
+  }
+  return details.join('\n');
+}).join('\n');
+
+const authFlows = Array.isArray(security.auth_flows) ? security.auth_flows.join(', ') : '';
+
+const rlsRows = (security.rls?.tables || []).map((table: any) => {
+  const tableName = stringify(table.name);
+  return (Array.isArray(table.policies) ? table.policies : []).map((policy: any) => {
+    return [
+      tableName,
+      stringify(policy.id),
+      stringify(policy.name || ''),
+      stringify(policy.action || ''),
+      stringify(policy.using || ''),
+      stringify(policy.with_check || ''),
+      stringify(policy.notes || ''),
+    ];
+  });
+}).flat();
+
+ensure(rlsRows.length > 0, 'security.rls.tables must include at least one policy');
+
+const rlsTable = renderTable(
+  ['Table', 'Policy', 'Name', 'Actions', 'Using', 'With Check', 'Notes'],
+  rlsRows
+);
+
+const vaultSecretsList = fmtList(security.vault?.secrets || []);
+const securityNotesList = Array.isArray(security.security_notes) ? fmtList(security.security_notes) : '';
+
+const securitySection = [
+  `- **Auth flows:** ${authFlows}.`,
+  rolesMarkdown,
+  '',
+  '**Row Level Security Policies:**',
+  rlsTable,
+  '',
+  '**Vault Secrets:**',
+  vaultSecretsList,
+  '',
+  securityNotesList,
+].filter(Boolean).join('\n');
+
+const intlSectionParts = [
+  `- **Locales:** ${Array.isArray(intl.locales) ? intl.locales.join(', ') : ''} (default ${intl.default_locale || 'en'}).`,
+  `- **Framework:** ${intl.framework || 'next-intl'} with routing strategy ${intl.routing_strategy || 'subpath routing'}.`,
+  `- **Translation pipeline:** ${intl.translation_pipeline || 'Documented in srs/app.yaml'}.`,
+  `- **Locale detection:** ${intl.locale_detection || 'Detect via Accept-Language; persist to Supabase profile.'}.`,
+  `- **Formatting:** ${intl.formatting || 'Intl.DateTimeFormat respecting profile timezone.'}.`,
+];
+const intlSection = intlSectionParts.join('\n');
+
+const budgets = performance.budgets || {};
+const budgetRows = Object.entries(budgets).map(([metric, value]) => [metric.toUpperCase(), stringify(value)]);
+const caching = Array.isArray(performance.caching) ? performance.caching.join(', ') : '';
+const images = Array.isArray(performance.images) ? performance.images.join(', ') : '';
+const metricsNotes = performance.metrics?.collection ? `- **Metrics collection:** ${performance.metrics.collection}.` : '';
+const alertNotes = Array.isArray(performance.metrics?.alerts)
+  ? performance.metrics.alerts.map((alert: string) => `  - ${alert}`).join('\n')
+  : '';
+const dbNotes = performance.database ? [
+  `- **Connection pooling:** ${performance.database.connection_pooling || ''}.`,
+  performance.database.indexes && Array.isArray(performance.database.indexes)
+    ? performance.database.indexes.map((idx: string) => `  - Index: ${idx}`).join('\n')
+    : '',
+].filter(Boolean).join('\n') : '';
+const perfGotchas = Array.isArray(performance.security_performance_gotchas)
+  ? performance.security_performance_gotchas.map((item: string) => `- ${item}`).join('\n')
+  : '';
+const performanceSection = [
+  '**Performance Budgets:**',
+  renderTable(['Metric', 'Target'], budgetRows),
+  '',
+  `- **Caching strategies:** ${caching}.`,
+  `- **Images:** ${images}.`,
+  metricsNotes,
+  alertNotes ? `- **Alerts:**\n${alertNotes}` : '',
+  dbNotes,
+  perfGotchas ? '**Security/Performance Gotchas:**\n' + perfGotchas : '',
+].filter(Boolean).join('\n');
+
+const partitionKeys = Array.isArray(pwa.partitions) ? pwa.partitions.join(', ') : '';
+const offlineStrategies = pwa.offline_strategy ? Object.entries(pwa.offline_strategy).map(([key, value]) => `- **${key}:** ${value}`).join('\n') : '';
+const pushTransports = Array.isArray(pwa.push_notifications) ? pwa.push_notifications.join(', ') : '';
+const swNotes = Array.isArray(pwa.service_worker?.notes) ? pwa.service_worker.notes.map((note: string) => `- ${note}`).join('\n') : '';
+const pwaSection = [
+  `- **Partitions:** ${partitionKeys}.`,
+  offlineStrategies,
+  `- **Push notifications:** ${pushTransports}.`,
+  `- **Manifest:** start_url ${pwa.manifest?.start_url || '/'}; theme ${pwa.manifest?.theme_color || '#000000'}.`,
+  `- **Service worker:** ${pwa.service_worker?.file || 'public/sw.ts'}.`,
+  swNotes,
+].filter(Boolean).join('\n');
+
+const integrationProviders = integrations.providers || {};
+const providerLines = Object.entries(integrationProviders).map(([key, value]) => `- **${key}:** ${(Array.isArray(value) ? value.join(', ') : value)}`);
+const integrationFunctions = Array.isArray(integrations.supabase_functions)
+  ? integrations.supabase_functions.map((fn: any) => `- **${fn.name}** — ${fn.description} (triggers: ${(fn.triggers || []).join(', ')})`).join('\n')
+  : '';
+const notificationLines = integrations.notifications?.transports
+  ? `- **Notification transports:** ${(integrations.notifications.transports || []).join(', ')}.`
+  : '';
+const notificationPrefs = integrations.notifications?.preferences
+  ? `  - Preferences: ${integrations.notifications.preferences}`
+  : '';
+const ogDefaults = integrations.og_image
+  ? `- **OG Image:** Generated via ${integrations.og_image.generator}; defaults title "${integrations.og_image.defaults?.title}".`
+  : '';
+const integrationsSection = [
+  providerLines.join('\n'),
+  integrationFunctions ? '**Supabase Functions:**\n' + integrationFunctions : '',
+  notificationLines,
+  notificationPrefs,
+  ogDefaults,
+  `- **Admin console:** ${integrations.admin_console || 'minimal'}.`,
+].filter(Boolean).join('\n');
+
+const observabilitySection = [
+  `- **Logging:** ${observability.logging || 'Structured logs via pino.'}`,
+  `- **Tracing:** ${observability.tracing || 'OpenTelemetry via @vercel/otel.'}`,
+  `- **Incident response:** ${observability.incident_response || 'Runbooks under docs/ops/ with PagerDuty escalation.'}`,
+].join('\n');
+
+const commandBlock = manualQa.command!.trim();
+const manualExpectations = Array.isArray(manualQa.expectations)
+  ? manualQa.expectations.map((item) => `- ${item}`).join('\n')
+  : '- Manual QA expectations not documented';
+
+const devWorkflowSection = [
+  '- `pnpm docs:gen` regenerates Spec/Brief/Plan from `srs/app.yaml`.',
+  '- `pnpm rtm:build` updates `docs/specs/generated/rtm-latest.md`.',
+  '- `pnpm catalog:publish` refreshes `.speckit/catalog/next-supabase/`.',
+  '- `pnpm test:acceptance` runs Playwright tests tagged with `@REQ-*`.',
+  '- Manual QA command:\n```bash\n' + commandBlock + '\n```',
+  'Expectations:\n' + manualExpectations,
+].join('\n');
+
+const acceptanceList = acceptance.map((item) => {
+  const lines = [`- **${item.id}** — ${item.text}`];
+  const ver = item.verification || {};
+  if (ver.docs && ver.docs.length) {
+    lines.push(`  - Docs: ${ver.docs.join(', ')}`);
+  }
+  if (ver.tests && ver.tests.length) {
+    lines.push(`  - Tests: ${ver.tests.join(', ')}`);
+  }
+  if (ver.code && ver.code.length) {
+    lines.push(`  - Code: ${ver.code.join(', ')}`);
+  }
+  return lines.join('\n');
+}).join('\n');
+
+const acceptanceChecklist = acceptance.map((item) => `- [ ] ${item.id} — ${item.text}`).join('\n');
+
+function loadTemplateVars(): Record<string, any> {
+  const varsPath = path.join(root, 'template.vars.json');
+  if (!fs.existsSync(varsPath)) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(varsPath, 'utf8'));
+    return parsed;
+  } catch (err) {
+    console.warn('Warning: unable to parse template.vars.json – %s', (err as Error).message);
+    return {};
+  }
+}
+
+const templateVars = loadTemplateVars();
+const environmentKeys = Object.keys(templateVars);
+const environmentSectionLines: string[] = [];
+if (environmentKeys.length) {
+  environmentSectionLines.push('- Template variables prompt for:');
+  environmentSectionLines.push(...environmentKeys.map((key) => `  - ${key}`));
+}
+if (security.vault?.secrets) {
+  environmentSectionLines.push('- Supabase Vault stores:');
+  environmentSectionLines.push(...security.vault.secrets.map((secret: string) => `  - ${secret}`));
+}
+environmentSectionLines.push('- Store Supabase client keys in `.env.local`; never commit service role keys.');
+const environmentSection = environmentSectionLines.join('\n');
+
+const stackSection = [
+  '- Next.js 15 App Router, TypeScript strict mode.',
+  '- Supabase Postgres + Storage with RLS; Supabase Auth for identity.',
+  `- Performance budgets enforced: TTFB ≤ ${budgets.ttfb_ms ?? '200'}ms, LCP ≤ ${budgets.lcp_ms ?? '2500'}ms, INP ≤ ${budgets.inp_ms ?? '200'}ms.`,
+  `- Caching strategy: ${caching}.`,
+  '- Use `next/image` with AVIF/WebP defaults and `ImageResponse` for OG generation.',
+].join('\n');
+
+const securitySummaryBullets = [
+  '- Keep Supabase RLS policies in sync with `srs/app.yaml` (see spec section 2).',
+  '- Wrap server actions with `createServerClient` to respect Supabase Auth sessions.',
+  '- Vault secrets provision service role keys and third-party credentials.',
+  '- Admin console requires `role() = \"admin\"` and runs on protected routes.',
+].join('\n');
+
+const intlSummaryBullets = [
+  `- Locales: ${Array.isArray(intl.locales) ? intl.locales.join(', ') : ''} with default ${intl.default_locale || 'en'}.`,
+  '- Use `next-intl` provider in `app/[locale]/layout.tsx` with server dictionaries.',
+  '- Persist locale preference in Supabase profile; fallback to Accept-Language.',
+].join('\n');
+
+const pwaSummaryBullets = [
+  `- Partitions: ${partitionKeys}.`,
+  '- Precache service worker assets and tag caches by Supabase user id.',
+  '- Background refresh rotates Supabase session tokens every 60 minutes.',
+].join('\n');
+
+const integrationsSummaryBullets = [
+  providerLines.join('\n'),
+  notificationLines,
+  notificationPrefs,
+  '- Slack + Stripe webhooks land in Supabase edge functions; follow RLS-safe patterns.',
+].filter(Boolean).join('\n');
+
+const catalogSection = [
+  '- Catalog bundle lives at `.speckit/catalog/next-supabase/`.',
+  '- Run `pnpm catalog:publish` after regenerating docs to sync manifest + templates.',
+  '- CI requires label `catalog:allowed` for catalog edits and `mode-change` for `.speckit/spec.yaml` or SRS updates.',
+  '- `speckit-verify` workflow blocks drift between SRS and generated docs.',
+].join('\n');
+
+const milestonesSection = (Array.isArray(srs.milestones) ? srs.milestones : []).map((m) => `- **${m.id}** — ${m.title}`).join('\n');
+
+const tokens: Record<string, string> = {
+  '{{meta.owners | first}}': firstOwner,
+  '{{ARCHITECTURE_OVERVIEW}}': architectureOverview,
+  '{{SECURITY_SECTION}}': securitySection,
+  '{{I18N_SECTION}}': intlSection,
+  '{{PERFORMANCE_SECTION}}': performanceSection,
+  '{{PWA_SECTION}}': pwaSection,
+  '{{INTEGRATIONS_SECTION}}': integrationsSection,
+  '{{OBSERVABILITY_SECTION}}': observabilitySection,
+  '{{DEV_WORKFLOW_SECTION}}': devWorkflowSection,
+  '{{ACCEPTANCE_CRITERIA_LIST}}': acceptanceList,
+  '{{PRESERVATION_POLICY}}': preservationPolicy,
+  '{{ACCEPTANCE_CRITERIA_CHECKLIST}}': acceptanceChecklist,
+  '{{ENVIRONMENT_SECTION}}': environmentSection,
+  '{{AGENT_PROMPT}}': (srs.agent_prompt || '').trim(),
+  '{{STACK_SECTION}}': stackSection,
+  '{{SECURITY_SUMMARY_BULLETS}}': securitySummaryBullets,
+  '{{I18N_SUMMARY_BULLETS}}': intlSummaryBullets,
+  '{{PWA_SUMMARY_BULLETS}}': pwaSummaryBullets,
+  '{{INTEGRATIONS_SUMMARY_BULLETS}}': integrationsSummaryBullets,
+  '{{CATALOG_SECTION}}': catalogSection,
+  '{{MANUAL_QA_COMMAND}}': commandBlock,
+  '{{MANUAL_QA_EXPECTATIONS}}': manualExpectations,
+  '{{MILESTONES_SECTION}}': milestonesSection,
 };
-const srsFile = specFiles.sort((a,b)=>{
-  const va = parseVersion(a);
-  const vb = parseVersion(b);
-  if(vb.major !== va.major){ return vb.major - va.major; }
-  if(vb.minor !== va.minor){ return vb.minor - va.minor; }
-  if(vb.patch !== va.patch){ return vb.patch - va.patch; }
-  return 0;
-})[0];
-const srs: SRS = yaml.load(fs.readFileSync(path.join(specsDir, srsFile),'utf8')) as any;
 
-const varsPath = path.join(root, 'template.vars.json');
-let vars: Record<string,string> = {};
-if (fs.existsSync(varsPath)) { try { vars = JSON.parse(fs.readFileSync(varsPath,'utf8')) } catch {} }
-const REPO_NAME = vars.REPO_NAME && !vars.REPO_NAME.includes('{{') ? vars.REPO_NAME : path.basename(root);
-const APP_TITLE = vars.APP_TITLE && !vars.APP_TITLE.includes('{{') ? vars.APP_TITLE : (srs.meta.title && !String(srs.meta.title).includes('{{') ? String(srs.meta.title) : REPO_NAME.replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
-const APP_PREFIX = (vars.APP_PREFIX && !vars.APP_PREFIX.includes('{{')) ? vars.APP_PREFIX : (srs.meta.prefix && !String(srs.meta.prefix).includes('{{') ? String(srs.meta.prefix) : 'APP');
-const VERSION = srs.meta.version;
-const ORG_NAME = vars.ORG_NAME && !vars.ORG_NAME.includes('{{') ? vars.ORG_NAME : (srs.meta.org && !String(srs.meta.org).includes('{{') ? String(srs.meta.org) : '');
-const DATE = new Date().toISOString().slice(0,10);
-
-const PROFILE_DEFAULTS: Record<KnownProfile, Record<string, boolean>> = {
-  minimal: { private_groups:false, settlement_scoring:false, housebot:false, market_data_provider:false, notifications:true, admin_console:true },
-  webapp:  { private_groups:false, settlement_scoring:false, housebot:false, market_data_provider:false, notifications:true, admin_console:true },
-  game:    { private_groups:false, settlement_scoring:true,  housebot:true,  market_data_provider:false, notifications:true, admin_console:true }
-}
-const isKnownProfile = (value: string): value is KnownProfile => Object.prototype.hasOwnProperty.call(PROFILE_DEFAULTS, value);
-const profile = profileOverride || srs.meta.profile || 'minimal';
-const profileDefaults = typeof profile === 'string' && isKnownProfile(profile) ? PROFILE_DEFAULTS[profile] : {};
-const mergedFeatures = { ...profileDefaults, ...(srs.meta.features||{}), ...featuresOverride };
-
-function mdH1(s:string){ return `# ${s}\n\n`; }
-function mdH2(s:string){ return `## ${s}\n\n`; }
-function traceFooter(prefix:string){ return `\n> **Traceability Hooks**  \n> • Tag tests: @${prefix}-REQ-###  \n> • PR Agent Task Envelope: spec_ids, tests_added, adr_ids  \n> • See RTM: docs/rtm.md  \n> • (Optional) Allure report + OTel trace ID\n`; }
-function applyTokens(input?: string){
-  if(!input) return '';
-  return input
-    .replace(/{{APP_TITLE}}/g, APP_TITLE)
-    .replace(/{{APP_PREFIX}}/g, APP_PREFIX)
-    .replace(/{{REPO_NAME}}/g, REPO_NAME)
-    .replace(/{{ORG_NAME}}/g, ORG_NAME)
-    .replace(/{{VERSION}}/g, VERSION);
+if (srs.documents_extra_tokens) {
+  Object.assign(tokens, srs.documents_extra_tokens);
 }
 
-const outDir = path.join(specsDir,'generated'); fs.mkdirSync(outDir,{recursive:true});
-
-function renderAcceptance(srs:SRS){
-  let md = '';
-  for(const r of (srs.requirements||[])){
-    md += `\n### ${r.id} — ${r.title}\n\n`;
-    for(const a of (r.acceptance||[])){ md += `- ${a.id}\n\n\`\`\`\n${(a.gwt||'').trim()}\n\`\`\`\n\n`; }
+function applyTokens(text?: string): string {
+  if (!text) return '';
+  let output = text;
+  for (const [token, value] of Object.entries(tokens)) {
+    output = output.split(token).join(value);
   }
-  return md;
+  return output.replace(/\s+$/g, '') + '\n';
 }
 
-function renderSections(sections?: DocumentSection[]){
-  let md = '';
-  for(const section of sections || []){
-    md += '---\n\n';
-    const rawTitle = applyTokens(section.title || '').trim();
-    const label = section.number !== undefined && section.number !== null && String(section.number).length>0
-      ? `## ${section.number}) ${rawTitle}`
-      : `## ${rawTitle}`;
-    md += `${label}\n`;
+function renderFrontMatter(frontMatter?: FrontMatter) {
+  if (!frontMatter || Object.keys(frontMatter).length === 0) {
+    return '';
+  }
+  const lines = Object.entries(frontMatter).map(([key, value]) => `${key}: ${value}`);
+  return ['---', ...lines, '---', ''].join('\n');
+}
+
+function renderSections(sections?: DocumentSection[]) {
+  if (!sections || !sections.length) return '';
+  return sections.map((section) => {
+    const number = section.number !== undefined && section.number !== null && String(section.number).length > 0
+      ? `## ${section.number}) ${applyTokens(section.title || '').trim()}`
+      : `## ${applyTokens(section.title || '').trim()}`;
     const body = applyTokens(section.body || '').trimEnd();
-    if(body){ md += `${body}\n`; }
-    if(section.subsections){
-      for(const sub of section.subsections){
-        const subTitle = applyTokens(sub.title || '').trim();
-        if(subTitle){ md += `\n### ${subTitle}\n\n`; }
-        const subBody = applyTokens(sub.body || '').trimEnd();
-        if(subBody){ md += `${subBody}\n`; }
-      }
-    }
-    md += '\n';
-  }
-  return md;
+    const subsections = (section.subsections || []).map((sub) => {
+      const title = applyTokens(sub.title || '').trim();
+      const subBody = applyTokens(sub.body || '').trimEnd();
+      return title ? `\n### ${title}\n\n${subBody}\n` : `\n${subBody}\n`;
+    }).join('');
+    return [`---`, '', number, body ? `${body}\n` : '', subsections].join('\n');
+  }).join('\n');
 }
 
-function renderFrontMatter(fm?: FrontMatter){
-  if(!fm) return '';
-  const entries = Object.entries(fm);
-  if(!entries.length) return '';
-  let md = '---\n';
-  for (const [key, val] of entries) {
-    md += `${key}: ${applyTokens(String(val ?? ''))}\n`;
-  }
-  md += '---\n\n';
-  return md;
-}
-
-function renderSpec(){
-  const doc = srs.document;
-  const hasRichDoc = doc && Array.isArray(doc.sections) && doc.sections.length > 0;
-  if(hasRichDoc && doc){
-    let md = '';
-    md += renderFrontMatter(srs.front_matter);
-    if(doc.heading){ md += `${applyTokens(doc.heading).trim()}\n\n`; }
-    if(doc.file_path){ md += `${applyTokens(doc.file_path).trim()}\n\n`; }
-    if(doc.overview){ md += `${applyTokens(doc.overview).trim()}\n\n`; }
-    if(doc.intro){
-      const intro = applyTokens(doc.intro).trim();
-      if(intro){ md += `${intro}\n\n`; }
-    }
-    md += renderSections(doc.sections);
-    if(doc.closing){
-      const closing = applyTokens(doc.closing).trimEnd();
-      if(closing){ md += `${closing}\n`; }
-    }
-    md = md.replace(/\s+$/, '\n');
-    const outputName = applyTokens(doc.output_file || `${APP_PREFIX.toLowerCase()}-spec-v${VERSION}.md`);
-    fs.writeFileSync(path.join(outDir, outputName), md);
-    fs.writeFileSync(path.join(outDir, 'spec-latest.md'), md);
-    return;
-  }
-
-  const base = `${APP_PREFIX.toLowerCase()}-spec-v${VERSION}.md`; // short file
+function renderDocument(doc: DocumentSpec, fallbackName: string, latestName: string) {
   let md = '';
-  md += mdH1(`${APP_TITLE} — Specification (v${VERSION})`);
-  md += `_Source: docs/specs/${srsFile} · Generated ${DATE}_\n\n`;
-  const sections: {title:string; enabled:boolean; body:string}[] = [];
-  const add = (title:string,enabled:boolean,body:string)=>sections.push({title,enabled,body});
-  add('Scope & Documents of Record', true, `- This doc mirrors the SRS; Spec is human-first.`);
-  add('Core Capabilities', true, `- Describe the core user tasks and system capabilities.`);
-  add('Domain Entities & Coverage', true, `- Summarize key entities.`);
-  add('Business Rules (authoritative)', true, `- Define constraints and invariants.`);
-  add('Algorithms / Scoring', !!mergedFeatures['settlement_scoring'], `- Scoring/settlement formulas if applicable.`);
-  add('Automation Services (Bot/Worker)', !!mergedFeatures['housebot'], `- Background workers or heuristics.`);
-  add('Identity & Privacy', true, `- Anonymity, login, PII handling.`);
-  add('Integrations — Outbound & Inbound', true, `- Webhooks, outbound posts, inbound adapters.`);
-  add('Internationalization', true, `- Language strategy.`);
-  add('Timezones', true, `- Server/client TZ handling.`);
-  add('Offline & Cache Isolation', true, `- PWA strategy, per-user caches.`);
-  add('Social Previews (OG) / Link Cards', true, `- Dynamic OG image strategy.`);
-  add('External Data Providers (swappable)', !!mergedFeatures['market_data_provider'], `- DI contract for providers.`);
-  add('UX & Accessibility', true, `- Accessibility checklist.`);
-  add('Data Model', true, `- High-level schema.`);
-  add('Notifications', !!mergedFeatures['notifications'], `- Transports and preferences.`);
-  add('Admin Console', !!mergedFeatures['admin_console'], `- Admin user journeys.`);
-  add('Non‑Functional & Security', true, `- Performance, RLS/ACL, audit.`);
-  add('Acceptance Criteria (from SRS)', true, renderAcceptance(srs));
-  add('Disclaimer', true, `This document is informational and may evolve.`);
-
-  for(const sect of sections){ if(sect.enabled){ md += mdH2(sect.title) + sect.body + '\n'; } }
-  md += traceFooter(APP_PREFIX);
-  fs.writeFileSync(path.join(outDir, base), md);
-  fs.writeFileSync(path.join(outDir, 'spec-latest.md'), md);
-}
-
-function renderPlan(){
-  const doc = srs.plan;
-  const hasRichDoc = doc && Array.isArray(doc.sections) && doc.sections.length > 0;
-  if(hasRichDoc && doc){
-    let md = '';
-    md += renderFrontMatter(doc.front_matter);
-    if(doc.heading){ md += `${applyTokens(doc.heading).trim()}\n\n`; }
-    if(doc.file_path){ md += `${applyTokens(doc.file_path).trim()}\n\n`; }
-    if(doc.overview){ md += `${applyTokens(doc.overview).trim()}\n\n`; }
-    if(doc.intro){
-      const intro = applyTokens(doc.intro).trim();
-      if(intro){ md += `${intro}\n\n`; }
-    }
-    md += renderSections(doc.sections);
-    if(doc.closing){
-      const closing = applyTokens(doc.closing).trimEnd();
-      if(closing){ md += `${closing}\n`; }
-    }
-    md = md.replace(/\s+$/, '\n');
-    const outputName = applyTokens(doc.output_file || `orchestration-plan-v${VERSION}.md`);
-    fs.writeFileSync(path.join(outDir, outputName), md);
-    fs.writeFileSync(path.join(outDir, 'orchestration-plan-latest.md'), md);
-    return;
+  md += renderFrontMatter(doc.front_matter);
+  if (doc.heading) {
+    md += applyTokens(doc.heading).trim() + '\n\n';
   }
-
-  const name = `orchestration-plan-v${VERSION}.md`;
-  let md = '';
-  md += mdH1(`${APP_TITLE} — Orchestration Plan (v${VERSION})`);
-  md += `_Source: docs/specs/${srsFile} · Generated ${new Date().toISOString().slice(0,10)}_\n\n`;
-  const add = (title:string,enabled:boolean,body:string)=>{ if(enabled){ md += mdH2(title)+body+'\n'; } };
-  add('Documents of Record',true,'- Spec, Plan, Brief generated from SRS.');
-  add('Tech Stack & Conventions',true,'- Next.js / Supabase / your stack here.');
-  add('Directory Layout',true,'- Repo tree and module boundaries.');
-  add('Environment & Secrets',true,'- Env vars, vault usage, scoping.');
-  add('Data Model',true,'- Entities and migrations strategy.');
-  add('Auth Strategy',true,'- Anonymous to account (if used).');
-  add('Core Flows',true,'- Primary user journeys.');
-  add('Rules / Algorithms (canonical)', !!mergedFeatures['settlement_scoring'], '- Verification of formulas.');
-  add('Automation Services (workers/cron)', !!mergedFeatures['housebot'], '- Runtimes and scheduling.');
-  add('Notifications & Preferences', !!mergedFeatures['notifications'], '- Channels and DND.');
-  add('PWA Offline (User‑Scoped)', true, '- Cache isolation strategy.');
-  add('Private Areas / Groups', !!mergedFeatures['private_groups'], '- Visibility and membership.');
-  add('Admin Console', !!mergedFeatures['admin_console'], '- Roles and capabilities.');
-  add('Integrations (Outbound + Inbound)', true, '- Webhooks and adapters.');
-  add('External Providers (swappable)', !!mergedFeatures['market_data_provider'], '- DI contracts and mocks.');
-  add('OG Images & Social Copy', true, '- Dynamic images and meta.');
-  add('Accessibility Checklist (PR Gate)', true, '- WCAG checks per PR.');
-  add('CI/CD & Quality Gates', true, '- Lint, test, RTM, Docusaurus.');
-  add('Labels & PR Template', true, '- Agent Task Envelope.');
-  add('Milestones (strict order)', true, '- Ordered implementation sequence.');
-  add('Non‑Negotiables', true, '- Security and quality bars.');
-  add('Agent Run Prompt', true, 'Copy‑paste prompt to kick off autonomous runs.');
-  md += traceFooter(APP_PREFIX);
-  fs.writeFileSync(path.join(outDir, name), md);
-  fs.writeFileSync(path.join(outDir, 'orchestration-plan-latest.md'), md);
-}
-
-function renderBrief(){
-  const doc = srs.brief;
-  const hasRichBrief = doc && (
-    (doc.sections && doc.sections.length > 0) ||
-    (doc.heading && doc.heading.trim().length>0) ||
-    (doc.intro && doc.intro.trim().length>0) ||
-    (doc.overview && doc.overview.trim().length>0) ||
-    (doc.closing && doc.closing.trim().length>0)
-  );
-  if(hasRichBrief && doc){
-    let md = '';
-    const fm = doc.front_matter;
-    if(fm && Object.keys(fm).length){
-      md += '---\n';
-      for(const [key,val] of Object.entries(fm)){ md += `${key}: ${applyTokens(String(val ?? ''))}\n`; }
-      md += '---\n\n';
-    }
-    const heading = applyTokens(doc.heading || '').trim();
-    if(heading){ md += `${heading}\n\n`; }
-    const intro = applyTokens(doc.intro || '').trim();
-    if(intro){ md += `${intro}\n\n`; }
-    const overview = applyTokens(doc.overview || '').trim();
-    if(overview){ md += `${overview}\n\n`; }
-    const sectionsMd = renderSections(doc.sections);
-    if(sectionsMd){ md += sectionsMd; }
-    const closing = applyTokens(doc.closing || '').trim();
-    if(closing){
-      md += `---\n\n${closing}\n`;
-    }
-    md = md.replace(/\s+$/, '\n');
-    const outputName = applyTokens(doc.output_file || `coding-agent-brief-v${VERSION}.md`);
-    fs.writeFileSync(path.join(outDir, outputName), md);
-    fs.writeFileSync(path.join(outDir, 'coding-agent-brief-latest.md'), md);
-    return;
+  if (doc.intro) {
+    md += applyTokens(doc.intro).trim() + '\n\n';
   }
+  md += renderSections(doc.sections);
+  if (doc.closing) {
+    md += applyTokens(doc.closing).trim() + '\n';
+  }
+  md = md.replace(/\s+$/g, '\n');
 
-  const name = `coding-agent-brief-v${VERSION}.md`;
-  let md = '';
-  md += mdH1(`${APP_TITLE} — Coding Agent Brief (v${VERSION})`);
-  md += `_Source: docs/specs/${srsFile} · Generated ${new Date().toISOString().slice(0,10)}_\n\n`;
-  const add = (title:string,body:string)=>{ md += mdH2(title)+body+'\n'; };
-  add('Ground Rules','- Follow Spec and Plan; write tagged tests; use PR envelope.');
-  add('Environment & Secrets','- Required variables and scopes.');
-  let wb = '\n' + (srs.requirements||[]).map((r:any)=>{
-    const tail = String(r.id||'').split('-').pop();
-    const rid = /\d+/.test(tail||'') ? tail : 'XXX';
-    return `- ${r.id}: ${r.title}\n  - Checklist: write test tagged @${APP_PREFIX}-REQ-${rid} ; update PR envelope ; attach evidence\n`;
-  }).join('');
-  add('Work Breakdown (Milestones + AC)', wb);
-  add('Data Model & Security','- High‑level schema and RLS/ACL.');
-  if(mergedFeatures['settlement_scoring']) add('Rules/Algorithms & Helpers','- Helpers for formulas with unit tests.');
-  if(mergedFeatures['admin_console']) add('Admin Console','- Admin journeys to implement.');
-  add('Security & Abuse Controls','- Rate limits, CSRF, audit.');
-  add('Tests & CI Gates','- Unit/e2e tagged by requirement; CI must pass.');
-  add('Deliverables & DoD','- PR with envelope; tests; docs regen; ADRs as needed.');
-  add('Copy‑Paste Prompt','> (Place your canonical agent prompt here)');
-  md += traceFooter(APP_PREFIX);
-  fs.writeFileSync(path.join(outDir, name), md);
-  fs.writeFileSync(path.join(outDir, 'coding-agent-brief-latest.md'), md);
+  const specificName = doc.output_file ? applyTokens(doc.output_file).trim() : `${safeSlug}-` + fallbackName;
+  const specificPath = path.join(specsOutputDir, specificName);
+  fs.writeFileSync(specificPath, md);
+  fs.writeFileSync(path.join(specsOutputDir, latestName), md);
+  return specificName;
 }
 
-renderSpec();
-renderPlan();
-renderBrief();
+fs.mkdirSync(specsOutputDir, { recursive: true });
+
+const writtenFiles: string[] = [];
+writtenFiles.push(renderDocument(docSpec, `spec-v${version}.md`, 'spec-latest.md'));
+writtenFiles.push(renderDocument(docBrief, `coding-agent-brief-v${version}.md`, 'coding-agent-brief-latest.md'));
+writtenFiles.push(renderDocument(docPlan, `orchestration-plan-v${version}.md`, 'orchestration-plan-latest.md'));
+
+const expected = new Set([
+  'spec-latest.md',
+  'coding-agent-brief-latest.md',
+  'orchestration-plan-latest.md',
+  ...writtenFiles,
+]);
+
+const removablePrefixes = ['spec', 'coding-agent-brief', 'orchestration-plan'];
+for (const file of fs.readdirSync(specsOutputDir)) {
+  const shouldConsider = file.endsWith('.md') && removablePrefixes.some((prefix) => file.includes(prefix));
+  if (shouldConsider && !expected.has(file)) {
+    fs.unlinkSync(path.join(specsOutputDir, file));
+  }
+}
+
+const missingToken = Object.entries(tokens).find(([, value]) => !value || !value.trim());
+if (missingToken) {
+  throw new Error(`Spec generation aborted: token ${missingToken[0]} resolved to empty string. Update srs/app.yaml to preserve details.`);
+}
+
+console.log('Generated spec, brief, and plan from %s', path.relative(root, srsPath));

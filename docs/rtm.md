@@ -1,8 +1,6 @@
 # Requirements Traceability Matrix
 
-Source: docs/specs/spec.v0.0.1.yaml
+The authoritative RTM is generated from `srs/app.yaml`.
 
-| Requirement | Title | Acceptance IDs | Status |
-|---|---|---|---|
-| REQ-001 | Anonymous first action | AT-001 | unknown |
-| REQ-002 | Email magic-link sign-in | AT-002 | unknown |
+- Run `pnpm rtm:build` to refresh.
+- Canonical output: [`docs/specs/generated/rtm-latest.md`](./specs/generated/rtm-latest.md)

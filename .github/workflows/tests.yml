@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  pull_request:
+    paths:
+      - 'tests/**'
+      - 'docs/specs/generated/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'playwright.config.mjs'
+      - '.github/workflows/tests.yml'
+      - 'scripts/**'
+      - 'srs/**'
+      - '.speckit/**'
+
+jobs:
+  playwright:
+    name: Playwright (@REQ coverage)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: pnpm install
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:acceptance

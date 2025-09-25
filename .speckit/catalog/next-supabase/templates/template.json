@@ -1,0 +1,11 @@
+{
+  "name": "app/next-supabase",
+  "description": "Next.js + Supabase SDD template (Spec, Agent Brief, Orchestration Plan).",
+  "specRoot": "docs/specs",
+  "varsFile": "template.vars.json",
+  "postInit": [
+    "pnpm install",
+    "pnpm docs:gen",
+    "pnpm rtm:build"
+  ]
+}

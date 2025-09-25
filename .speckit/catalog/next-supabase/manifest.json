@@ -1,0 +1,12 @@
+{
+  "name": "next-supabase",
+  "version": "0.4.0",
+  "dialect": {
+    "id": "speckit.v1",
+    "version": "1.0.0"
+  },
+  "provenance": {
+    "repo": "airnub/next-supabase-speckit-template",
+    "generator": "speckit"
+  }
+}

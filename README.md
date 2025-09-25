@@ -41,12 +41,25 @@ corepack enable
 pnpm install
 pnpm docs:gen
 pnpm rtm:build
+pnpm catalog:publish   # refresh .speckit/catalog bundle
+pnpm test:acceptance  # Playwright + requirement tags
 pnpm docs:serve   # docs dev server
 # or
 pnpm docs:build   # static build in docs/website/build
 ```
 
-These commands manage the documentation and verification toolchain only. Once you've scaffolded an app, run its scripts with `pnpm --filter apps/<name> <command>` alongside the workflows above.
+Run `pnpm speckit:verify` to confirm docs match the SRS before pushing.
+
+These commands manage the documentation and verification toolchain only.
+
+## CI & Policy Gates
+
+- `speckit-verify` ensures `pnpm docs:gen` + `pnpm rtm:build` leave no git diff.
+- `tests.yml` runs `pnpm test:acceptance` with Playwright tagged by `@REQ-*`.
+- `catalog-gate.yml` blocks merges touching `.speckit/catalog/**` without the `catalog:allowed` label.
+- `mode-policy-gate.yml` requires the `mode-change` label for `.speckit/spec.yaml`, `srs/app.yaml`, or template policy edits.
+
+Once you've scaffolded an app, run its scripts with `pnpm --filter apps/<name> <command>` alongside the workflows above.
 
 > ℹ️ The repository is configured as a [pnpm workspace](https://pnpm.io/workspaces). Running `pnpm install` at the root installs the Docusaurus app in `docs/website` along with the rest of the tooling, so you no longer need to run a separate install inside the docs folder.
 
@@ -61,7 +74,17 @@ The CLI will prompt from `template.vars.json`, copy files, then run the `postIni
 
 ## Manual QA (Speckit)
 
-1. `rm -rf /tmp/next-supabase-template && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template`
-2. Confirm the CLI prompts for `REPO_NAME`, `APP_TITLE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` (from `template.vars.json`).
-3. Verify `postInit` ran: `pnpm docs:gen` and `pnpm rtm:build`.
-4. Open `/tmp/next-supabase-template/docs/specs/...` and see placeholders replaced.
+Run the bundled flow and confirm outputs match the generated docs:
+
+```bash
+rm -rf /tmp/next-supabase-template \
+  && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
+  && cd /tmp/next-supabase-template \
+  && pnpm docs:gen && pnpm rtm:build
+```
+
+You should observe:
+
+- Prompts for `REPO_NAME`, `APP_TITLE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
+- `postInit` runs `pnpm install`, `pnpm docs:gen`, and `pnpm rtm:build`.
+- `docs/specs/generated/` contains the regenerated Spec, Brief, Plan, and RTM with placeholders replaced.

@@ -1,0 +1,30 @@
+name: speckit-verify
+
+on:
+  pull_request:
+    paths:
+      - '.speckit/**'
+      - 'srs/**'
+      - 'scripts/**'
+      - 'docs/specs/**'
+      - 'template.json'
+      - 'template.vars.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'README.md'
+      - '.github/workflows/speckit-verify.yml'
+
+jobs:
+  verify:
+    name: Verify generated docs match SRS
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: pnpm install
+      - run: pnpm speckit:verify

@@ -4,16 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint:spec": "spectral lint docs/specs/spec.v*.yaml",
+    "lint:spec": "spectral lint srs/app.yaml",
     "docs:gen": "tsx scripts/spec-gen.ts",
     "rtm:build": "tsx scripts/rtm/build-rtm.ts",
     "agent:run": "tsx scripts/agent/run.ts",
     "docs:serve": "pnpm -C docs/website start",
-    "docs:build": "pnpm -C docs/website build"
+    "docs:build": "pnpm -C docs/website build",
+    "catalog:publish": "tsx scripts/catalog/publish.ts",
+    "test:acceptance": "playwright test",
+    "speckit:verify": "pnpm docs:gen && pnpm rtm:build && git diff --exit-code"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
+    "@playwright/test": "^1.55.1",
     "@stoplight/spectral-cli": "^6.11.1",
+    "@types/node": "^20.11.0",
     "js-yaml": "^4.1.0",
     "playwright": "^1.46.0",
     "prettier": "^3.3.3",
