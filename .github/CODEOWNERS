@@ -1,0 +1,5 @@
+# Guard core template metadata
+/template.json            @airnub
+/template.vars.json       @airnub
+/.speckit/**              @airnub
+/.spectral.yaml           @airnub

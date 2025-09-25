@@ -1,0 +1,46 @@
+name: Template Metadata Guardrails
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+jobs:
+  protect-template-assets:
+    name: Protect template governance files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce template-change label for protected files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const protectedFiles = [
+              'template.json',
+              'template.vars.json'
+            ];
+            const protectedPrefixes = [
+              '.speckit/'
+            ];
+            const labelRequired = 'template-change';
+            const labels = (context.payload.pull_request?.labels || []).map(label => label.name);
+            const hasLabel = labels.includes(labelRequired);
+
+            const params = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100
+            };
+
+            const modified = [];
+            for await (const response of github.paginate.iterator(github.rest.pulls.listFiles, params)) {
+              for (const file of response.data) {
+                const filename = file.filename;
+                if (protectedFiles.includes(filename) || protectedPrefixes.some(prefix => filename.startsWith(prefix))) {
+                  modified.push(filename);
+                }
+              }
+            }
+
+            if (modified.length && !hasLabel) {
+              core.setFailed(`Protected template files modified without required '${labelRequired}' label. Add the label for intentional updates. Offending paths: ${modified.join(', ')}`);
+            }

@@ -1,6 +1,8 @@
 {
-  "REPO_NAME": "{{env.REPO_NAME||auto}}",
-  "APP_TITLE": "{{env.APP_TITLE||Humanized from repo}}",
+  "REPO_NAME": { "prompt": "Repository name", "default": "acme/next-supabase" },
+  "APP_TITLE": { "prompt": "App title", "default": "Acme Web" },
+  "SUPABASE_URL": { "prompt": "Supabase URL (https://…)" },
+  "SUPABASE_ANON_KEY": { "prompt": "Supabase anon key" },
   "APP_PREFIX": "APP",
   "VERSION": "0.0.1",
   "ORG_NAME": "{{env.ORG_NAME||auto}}"
