@@ -1,73 +1,81 @@
-# Pull Request — Spec‑Driven Development (SDD)
+# Pull Request — next‑supabase‑speckit‑template
 
-> Please fill this out. CI will check your SRS, regenerate docs, build the docs site, and verify tests.
+> Please complete all sections. CI will check spec/docs drift, run tests, and enforce label gates.
 
 ## Title
 
-`[SDD] <short summary>`
+`[type] <short summary>`  
+_Use Conventional Commits for the first word (feat, fix, docs, chore, ci, test, refactor, perf)._
+
+---
 
 ## What & Why
+- **What changed:**
+- **Why:**
+- **User impact / template impact:**
 
-* **What changed:**
-* **Why:**
+---
 
 ## Scope — Requirements impacted
+List all requirement IDs touched by this PR (from the SRS / RTM).
 
-List all requirement IDs touched by this PR.
+- `REQ-____`
+- `REQ-____`
 
-* `{{APP_PREFIX}}-REQ-___`
-* `{{APP_PREFIX}}-REQ-___`
+> If adding new requirements, update `srs/app.yaml` and re‑generate docs/RTM.
 
-### Agent Task Envelope (required)
+---
 
-Paste as **valid JSON**. This is parsed by tooling/CI to update the RTM and evidence links.
+## Evidence
+Provide links or screenshots:
+- **Docs generation:** link to CI step or paste `git diff` status showing no drift
+- **RTM:** link to `docs/specs/generated/rtm-latest.md` in the PR artifacts
+- **Tests:** CI run URL (Playwright); optional aXe/Lighthouse reports
 
-```json
-{
-  "agent_task_id": "",
-  "spec_ids": ["{{APP_PREFIX}}-REQ-001"],
-  "tests_added": ["tests/<file>.spec.ts#@{{APP_PREFIX}}-REQ-001"],
-  "evidence": [".playwright-report/index.html", "allure-report/index.html"],
-  "adr_ids": ["ADR-0001"],
-  "notes": ""
-}
-```
+---
 
-> **Commit trailers** (add to each commit that implements a requirement):
->
-> ```
-> Spec-ID: {{APP_PREFIX}}-REQ-001
-> ADR-ID: ADR-0001
-> ```
+## Checklists
 
-## Acceptance Evidence
+### Local verification
+- [ ] Ran `pnpm docs:gen` **twice** with **no diffs** under `docs/specs/generated/**`
+- [ ] Ran `pnpm rtm:build` and verified `docs/specs/generated/rtm-latest.md`
+- [ ] Ran `pnpm test:acceptance` and scenarios are tagged with `@REQ-*`
 
-* **Spec section(s):** `docs/specs/generated/spec-latest.md`
-* **Brief section(s):** `docs/specs/generated/coding-agent-brief-latest.md`
-* **Plan section(s):** `docs/specs/generated/orchestration-plan-latest.md`
-* **Screenshots / recordings:** (attach)
-* **Logs / reports:** (e.g., Allure, Playwright HTML)
+### Labels & policy gates
+- [ ] **No** changes under `.speckit/catalog/**`  
+  **OR** I added the **`catalog:allowed`** label for catalog edits.
+- [ ] **No** changes to `.speckit/spec.yaml`, `.spectral.yaml`, or `policy/**`  
+  **OR** I added the **`mode-change`** label and explained the rationale.
 
-## Checklist
+### Preservation Policy
+- [ ] I did **not** remove or dilute platform‑specific details (Next.js/Supabase, RLS, Vault, i18n, perf/security gotchas, ADRs, CI gates).
+- [ ] Variable interpolation only replaced placeholders; it did **not** delete opinionated sections.
 
-* [ ] I ran `pnpm lint:spec` (SRS lints clean)
-* [ ] I ran `pnpm docs:gen` and committed any doc updates
-* [ ] I ran `pnpm rtm:build` and included `docs/rtm.md` changes (if any)
-* [ ] I added/updated tests tagged with `@{{APP_PREFIX}}-REQ-###`
-* [ ] I verified local docs build: `pnpm -C docs/site build` (CI will also build)
-* [ ] I included **Agent Task Envelope** JSON above (valid JSON)
-* [ ] No secrets or credentials are committed
+---
+
+## Docs updated?
+- [ ] `docs/specs/generated/spec-latest.md`
+- [ ] `docs/specs/generated/coding-agent-brief-latest.md`
+- [ ] `docs/specs/generated/orchestration-plan-latest.md`
+
+> If any are missing, run `pnpm docs:gen` and commit.
+
+---
 
 ## Breaking changes?
+- [ ] No breaking changes
+- [ ] Breaking changes (describe migration plan):
 
-* [ ] No
-* [ ] Yes — describe migration/rollout:
+**Migration notes:**
 
-## Deployment notes
+---
 
-* Feature flag / profile / env changes:
-* Rollback plan:
+## Additional notes
+- Links to related issues/PRs:
+- Follow‑ups / out of scope:
 
-## Additional context
+---
 
-(links to issues, discussions, ADRs, designs)
+### References
+- **AGENTS:** `AGENTS.md` (Preservation Policy & run prompt)
+- **Guardrails:** `docs/internal/DRIFT-GUARDRAILS.md`

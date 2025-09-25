@@ -2,37 +2,55 @@
 
 **Repo:** `{{REPO_NAME}}`
 
-**Spec‑Driven Development (SDD) for Next.js + Supabase teams.** Generate **Specification / Coding Agent Brief / Orchestration Plan** from a single SRS YAML, run coding agents with one click, and prove acceptance with tagged tests, Allure reports, and a Requirements Traceability Matrix (RTM). This template currently ships the documentation and automation stack only—you bring the Next.js app code that will consume it.
+**Spec‑Driven Development (SDD) for Next.js + Supabase.** Generate a **Specification**, **Coding Agent Brief**, and **Orchestration Plan** from a single SRS YAML; run coding agents with one click; and prove acceptance with tagged tests and an RTM (Requirements Traceability Matrix). This template ships the **documentation + automation stack**—you bring the Next.js app that consumes it.
 
-[![Spec Trace CI](https://img.shields.io/badge/ci-spec--trace-blue)](#)
-[![Run Agent](https://img.shields.io/badge/action-run%20agent-brightgreen)](#)
-[![Playwright](https://img.shields.io/badge/tests-playwright-informational)](#)
-[![Docs](https://img.shields.io/badge/docs-docusaurus-lightgrey)](#)
+[![Spec Trace CI](https://img.shields.io/badge/ci-spec--trace-blue)](#ci--drift-protection)
+[![Run Agent](https://img.shields.io/badge/action-run%20agent-brightgreen)](#agents--one-click)
+[![Playwright](https://img.shields.io/badge/tests-playwright-informational)](#tests--rtm)
+[![Docs](https://img.shields.io/badge/docs-docusaurus-lightgrey)](#docs--site)
 
-## What's included
+> 🔒 **Preservation Policy:** This template **preserves all opinionated, platform‑specific details** (Next.js + Supabase wiring, **RLS**, **Vault**, i18n, performance/security gotchas, ADRs, CI gates). See **[AGENTS.md](./AGENTS.md)** and **[Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md)**.
 
-- SRS‑driven documentation pipeline (`pnpm docs:gen`, `pnpm docs:serve`, `pnpm docs:build`).
-- Requirements Traceability Matrix tooling (`pnpm rtm:build`).
-- Docusaurus site in `docs/website` sourced from the generated specs.
-- Playwright acceptance test harness in `tests/` with requirement ID tagging.
-- Agent runner scripts under `scripts/` for automating coding workflows.
+---
 
-## What's intentionally _not_ included
+## What’s inside
 
-- A Next.js / Supabase application under `apps/`. The workspace is preconfigured with an `apps/*` glob, but the actual app code is left to you so you can scaffold the stack that matches your product.
+- **Single source of truth** at `.speckit/spec.yaml` → `srs/app.yaml`
+- **Generated docs** (deterministic):
+  - `docs/specs/generated/spec-latest.md`
+  - `docs/specs/generated/coding-agent-brief-latest.md`
+  - `docs/specs/generated/orchestration-plan-latest.md`
+  - `docs/specs/generated/rtm-latest.md` (traceability)
+- **Playwright** acceptance harness with `@REQ-*` tags
+- **Docusaurus** site in `docs/website` (sourced from generated specs)
+- **Agent runner & scripts** under `scripts/`
+- **Speckit catalog** scaffolding under `.speckit/catalog/**` (label‑gated, read‑only)
 
-### Bring your own Next.js app
+### What’s intentionally _not_ included
+- A Next.js / Supabase app under `apps/`. The workspace is ready (`apps/*`), but app code is **yours**, so your product architecture stays opinionated.
 
-When you're ready to add the product surface area, scaffold it inside the workspace and wire it up to Supabase:
+> See **Bring your own Next.js app** below.
 
-```bash
-pnpm create next-app apps/web --use-pnpm --typescript --eslint
+---
+
+## Repo structure (high‑level)
+
+```
+.speckit/
+  spec.yaml                 # dialect + SRS pointer
+  catalog/
+    next-supabase/          # importable bundle (manifest + templates + provenance)
+srs/
+  app.yaml                  # your SRS (golden source)
+docs/
+  specs/generated/          # spec/brief/plan/rtm (generated)
+  website/                  # Docusaurus site
+scripts/                    # docs/rtm/catalog helpers
+tests/                      # Playwright specs tagged with @REQ-*
+AGENTS.md                   # agent front door + preservation policy
 ```
 
-- Replace `web` with whatever app name you prefer. The directory just needs to live under `apps/` so the pnpm workspace picks it up automatically.
-- Add Supabase dependencies (`@supabase/supabase-js`, auth helpers, etc.) and environment variables as needed.
-- Expose scripts like `"dev"`, `"lint"`, and `"test"` in the generated `apps/<name>/package.json` so you can target them via `pnpm --filter` commands.
-- Update the SRS YAML plus tagged tests to reflect the capabilities you build.
+---
 
 ## Quickstart (docs + tooling)
 
@@ -45,9 +63,21 @@ pnpm catalog:publish   # refresh .speckit/catalog bundle
 pnpm test:acceptance  # Playwright + requirement tags
 pnpm docs:serve   # docs dev server
 # or
-pnpm docs:build   # static build in docs/website/build
+pnpm docs:build   # static build at docs/website/build
 ```
 
+- This manages the **documentation + verification** toolchain.
+- When you add an app under `apps/`, target it via `pnpm --filter apps/<name> <command>`.
+
+> The repo is a **pnpm workspace**. Running `pnpm install` at the root installs everything (including `docs/website`).
+
+---
+
+## Bring your own Next.js app
+
+```bash
+pnpm create next-app apps/web --use-pnpm --typescript --eslint
+```
 Run `pnpm speckit:verify` to confirm docs match the SRS before pushing.
 
 These commands manage the documentation and verification toolchain only.
@@ -60,19 +90,134 @@ These commands manage the documentation and verification toolchain only.
 - `mode-policy-gate.yml` requires the `mode-change` label for `.speckit/spec.yaml`, `srs/app.yaml`, or template policy edits.
 
 Once you've scaffolded an app, run its scripts with `pnpm --filter apps/<name> <command>` alongside the workflows above.
+- Replace `web` with your app name.
+- Add Supabase deps (e.g., `@supabase/supabase-js`, auth helpers) and envs.
+- Expose scripts like `dev`, `lint`, `test` in `apps/<name>/package.json`.
+- Update **SRS** + **tests** to match what you build.
 
-> ℹ️ The repository is configured as a [pnpm workspace](https://pnpm.io/workspaces). Running `pnpm install` at the root installs the Docusaurus app in `docs/website` along with the rest of the tooling, so you no longer need to run a separate install inside the docs folder.
+---
 
 ## Use with Speckit
 
-Local (as a repo template):
-```sh
+### Local (as a repo template)
+```bash
 speckit template use https://github.com/airnub/next-supabase-speckit-template ./starter
 ```
+- You’ll be prompted for variables from `template.vars.json`.
+- `postInit` (from `template.json`) runs: `pnpm install`, `pnpm docs:gen`, `pnpm rtm:build`.
+- You can also copy this under another project’s `.speckit/templates/app/next-supabase` to appear in Speckit’s picker.
 
-The CLI will prompt from `template.vars.json`, copy files, then run the `postInit` commands from `template.json` (`pnpm install`, `pnpm docs:gen`, `pnpm rtm:build`). You can also drop this repo under another project's `.speckit/templates/app/next-supabase` and it will appear in the picker. See Speckit's README for template manifests, variable prompts, and post-init commands.
+### Manual QA (import flow)
+```bash
+rm -rf /tmp/next-supabase-template \
+ && speckit template use https://github.com/airnub/next-supabase-speckit-template /tmp/next-supabase-template \
+ && cd /tmp/next-supabase-template \
+ && pnpm docs:gen && pnpm rtm:build
+```
+- Confirm prompts for: `REPO_NAME`, `APP_TITLE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
+- Verify generated docs under `docs/specs/generated/**` and placeholders replaced.
 
-## Manual QA (Speckit)
+---
+
+## Agents — one‑click
+
+See **[AGENTS.md](./AGENTS.md)** for:
+- One‑click GitHub Action and local run (`pnpm agent:run`)
+- The **Agent Run Prompt** (copy‑paste)
+- The **Preservation Policy** (do **not** genericize platform specifics)
+
+---
+
+## CI & Drift Protection
+
+This template mirrors **Speckit’s conventions** to prevent drift:
+
+- **`speckit-verify.yml`** — fails if generated docs drift from SRS
+- **`catalog-gate.yml`** — requires `catalog:allowed` label to change `.speckit/catalog/**`
+- **`mode-policy-gate.yml`** — requires `mode-change` label for mode/dialect/policy edits
+- **`tests.yml`** — runs Playwright (`@REQ-*` tags); optional aXe/Lighthouse behind flags
+
+See **[Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md)** for file paths, CODEOWNERS, labeler rules, and starter workflow YAML.
+
+---
+
+## Tests & RTM
+
+- Write Playwright specs in `tests/**` and tag scenarios with the matching `@REQ-...` ID.
+- Build traceability with:
+  ```bash
+  pnpm rtm:build
+  ```
+- Latest RTM lands at `docs/specs/generated/rtm-latest.md`.
+
+---
+
+## Docs & Site
+
+- Generate docs from SRS:
+  ```bash
+  pnpm docs:gen
+  ```
+- Serve locally: `pnpm docs:serve` → http://localhost:3000
+- Static build: `pnpm docs:build` → `docs/website/build`
+
+---
+
+## Variables (templating)
+
+`template.vars.json` drives prompts on import. Required defaults:
+
+- `REPO_NAME` — repository slug
+- `APP_TITLE` — human‑readable app name
+- `SUPABASE_URL` — your project URL
+- `SUPABASE_ANON_KEY` — public anon key
+
+> Add more as your **SRS** grows; never remove platform‑specific sections during interpolation.
+
+---
+
+## Publishing a Speckit Catalog
+
+Create an importable bundle (read‑only, label‑gated):
+
+```
+.speckit/catalog/next-supabase/
+  manifest.json
+  templates/**
+  generation-manifest.json
+```
+
+Recommended script:
+```bash
+pnpm catalog:publish
+```
+
+- PRs that change `.speckit/catalog/**` must include the **`catalog:allowed`** label.
+
+---
+
+## Contributing
+
+- Follow the **Preservation Policy** in [AGENTS.md](./AGENTS.md).
+- Before opening a PR:
+  - `pnpm docs:gen && pnpm rtm:build` (no diffs expected)
+  - If touching `.speckit/catalog/**` add the `catalog:allowed` label
+  - If touching `.speckit/spec.yaml`, `.spectral.yaml`, `policy/**`, add the `mode-change` label
+- See **[Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md)** for the maintainer checklist.
+
+---
+
+## FAQ
+
+**Why ship a doc+automation template without an app?**  
+To keep the **platform‑specific architecture** and **specs** first‑class and reusable. You can slot any Next.js app under `apps/` and keep the same SDD flow.
+
+**Does Speckit strip platform details?**  
+No. Import copies files **as‑is** (with variable interpolation), runs `postInit`, and preserves your opinionated content. Adapters normalize dialects **without mutating templates**.
+
+---
+
+## License
 
 Run the bundled flow and confirm outputs match the generated docs:
 
@@ -88,3 +233,5 @@ You should observe:
 - Prompts for `REPO_NAME`, `APP_TITLE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
 - `postInit` runs `pnpm install`, `pnpm docs:gen`, and `pnpm rtm:build`.
 - `docs/specs/generated/` contains the regenerated Spec, Brief, Plan, and RTM with placeholders replaced.
+
+MIT — see `LICENSE`.
