@@ -8,6 +8,9 @@
 [![CI: tests](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/tests.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/tests.yml)
 [![CI: catalog gate](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/catalog-gate.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/catalog-gate.yml)
 [![CI: mode policy gate](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/mode-policy-gate.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/mode-policy-gate.yml)
+[![Security: CodeQL](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/codeql.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/codeql.yml)
+[![Supply Chain: SBOM](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/sbom.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/sbom.yml)
+[![Security: Dependency Review](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/dependency-review.yml)
 [![Powered by Speckit](https://img.shields.io/badge/powered%20by-speckit-blueviolet)](https://github.com/airnub/speckit)
 
 > 🔒 **Preservation Policy:** This template **preserves all opinionated, platform‑specific details** (Next.js + Supabase wiring, **RLS**, **Vault**, i18n, performance/security gotchas, ADRs, CI gates). See **[AGENTS.md](./AGENTS.md)** and **[Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md)**.
