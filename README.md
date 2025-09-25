@@ -2,12 +2,13 @@
 
 **Repo:** `{{REPO_NAME}}`
 
-**Spec‑Driven Development (SDD) for Next.js + Supabase.** Generate a **Specification**, **Coding Agent Brief**, and **Orchestration Plan** from a single SRS YAML; run coding agents with one click; and prove acceptance with tagged tests and an RTM (Requirements Traceability Matrix). This template ships the **documentation + automation stack**—you bring the Next.js app that consumes it.
+**Spec‑Driven Development (SDD) for Next.js + Supabase.** This template enables **Spec Driven Development (SDD)**: turn a single SRS into a **Specification**, **Coding Agent Brief**, and **Orchestration Plan**; run coding agents with one click; and prove acceptance with tagged tests and a Requirements Traceability Matrix (RTM). You get the **documentation + automation stack**—bring your Next.js app to consume it.
 
-[![Spec Trace CI](https://img.shields.io/badge/ci-spec--trace-blue)](#ci--drift-protection)
-[![Run Agent](https://img.shields.io/badge/action-run%20agent-brightgreen)](#agents--one-click)
-[![Playwright](https://img.shields.io/badge/tests-playwright-informational)](#tests--rtm)
-[![Docs](https://img.shields.io/badge/docs-docusaurus-lightgrey)](#docs--site)
+[![CI: speckit-verify](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/speckit-verify.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/speckit-verify.yml)
+[![CI: tests](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/tests.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/tests.yml)
+[![CI: catalog gate](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/catalog-gate.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/catalog-gate.yml)
+[![CI: mode policy gate](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/mode-policy-gate.yml/badge.svg)](https://github.com/airnub/speckit-template-next-supabase/actions/workflows/mode-policy-gate.yml)
+[![Powered by Speckit](https://img.shields.io/badge/powered%20by-speckit-blueviolet)](https://github.com/airnub/speckit)
 
 > 🔒 **Preservation Policy:** This template **preserves all opinionated, platform‑specific details** (Next.js + Supabase wiring, **RLS**, **Vault**, i18n, performance/security gotchas, ADRs, CI gates). See **[AGENTS.md](./AGENTS.md)** and **[Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md)**.
 
@@ -15,10 +16,10 @@
 
 ## Link hub
 
-- [Agent front door](./AGENTS.md) — preservation policy, prompts, and run commands.
-- [Spec + generated docs](./docs/specs/generated/spec-latest.md) — source of truth with orchestration + brief siblings.
-- [Requirements Traceability Matrix](./docs/specs/generated/rtm-latest.md) — `REQ-*` coverage map.
-- [Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md) — maintainer checklist for drift, catalog, and mode policy gates.
+- **[Agent front door](./AGENTS.md)** — preservation policy, prompts, one‑click/local runs.
+- **[Spec + generated docs](./docs/specs/generated/spec-latest.md)** — source of truth; brief + plan are siblings.
+- **[Requirements Traceability Matrix](./docs/specs/generated/rtm-latest.md)** — `REQ-*` coverage map.
+- **[Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md)** — maintainer checklist for drift, catalog, and mode policy gates.
 
 ---
 
@@ -69,10 +70,10 @@ pnpm install
 pnpm docs:gen
 pnpm rtm:build
 pnpm catalog:publish   # refresh .speckit/catalog bundle
-pnpm test:acceptance  # Playwright + requirement tags
-pnpm docs:serve   # docs dev server
+pnpm test:acceptance   # Playwright + requirement tags
+pnpm docs:serve        # docs dev server
 # or
-pnpm docs:build   # static build at docs/website/build
+pnpm docs:build        # static build at docs/website/build
 ```
 
 - This manages the **documentation + verification** toolchain.
@@ -87,22 +88,13 @@ pnpm docs:build   # static build at docs/website/build
 ```bash
 pnpm create next-app apps/web --use-pnpm --typescript --eslint
 ```
-Run `pnpm speckit:verify` to confirm docs match the SRS before pushing.
 
-These commands manage the documentation and verification toolchain only.
-
-## CI & Policy Gates
-
-- `speckit-verify` ensures `pnpm docs:gen` + `pnpm rtm:build` leave no git diff.
-- `tests.yml` runs `pnpm test:acceptance` with Playwright tagged by `@REQ-*`.
-- `catalog-gate.yml` blocks merges touching `.speckit/catalog/**` without the `catalog:allowed` label.
-- `mode-policy-gate.yml` requires the `mode-change` label for `.speckit/spec.yaml`, `srs/app.yaml`, or template policy edits.
-
-Once you've scaffolded an app, run its scripts with `pnpm --filter apps/<name> <command>` alongside the workflows above.
 - Replace `web` with your app name.
 - Add Supabase deps (e.g., `@supabase/supabase-js`, auth helpers) and envs.
 - Expose scripts like `dev`, `lint`, `test` in `apps/<name>/package.json`.
 - Update **SRS** + **tests** to match what you build.
+
+Run `pnpm speckit:verify` to confirm docs match the SRS before pushing.
 
 ---
 
@@ -147,12 +139,6 @@ This template mirrors **Speckit’s conventions** to prevent drift:
 - **`tests.yml`** — runs Playwright (`@REQ-*` tags); optional aXe/Lighthouse behind flags
 
 See **[Drift Guardrails](./docs/internal/DRIFT-GUARDRAILS.md)** for file paths, CODEOWNERS, labeler rules, and starter workflow YAML.
-
----
-
-## Drift Guardrails
-
-Review **[docs/internal/DRIFT-GUARDRAILS.md](./docs/internal/DRIFT-GUARDRAILS.md)** before merging changes that touch the spec, generated docs, or catalog bundle. It’s a copy‑paste maintainer checklist covering drift detection, catalog label gates, mode policy gates, and review sign‑offs so the Next.js + Supabase wiring never drifts from the published template.
 
 ---
 
@@ -232,7 +218,7 @@ No. Import copies files **as‑is** (with variable interpolation), runs `postIni
 
 ---
 
-## License
+## Smoke test
 
 Run the bundled flow and confirm outputs match the generated docs:
 
@@ -249,4 +235,12 @@ You should observe:
 - `postInit` runs `pnpm install`, `pnpm docs:gen`, and `pnpm rtm:build`.
 - `docs/specs/generated/` contains the regenerated Spec, Brief, Plan, and RTM with placeholders replaced.
 
+---
+
+## License
+
 MIT — see `LICENSE`.
+
+<!-- SEO: include explicit spelling for people searching -->
+<!-- Spec Driven Development (SDD), Spec‑Driven Development (SDD) -->
+
