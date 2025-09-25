@@ -21,10 +21,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Generate CycloneDX SBOM
-        uses: CycloneDX/gh-node-module-generate-sbom@v2
+        uses: anchore/sbom-action@v0
         with:
-          format: json
+          path: .
+          format: cyclonedx-json
           output-file: sbom.json
+          upload-artifact: false
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
         with:

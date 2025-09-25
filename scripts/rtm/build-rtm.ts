@@ -39,9 +39,9 @@ if (!acceptance.length) {
 const sortedAcceptance = [...acceptance].sort((a, b) => a.id.localeCompare(b.id));
 const rows = sortedAcceptance.map((criterion) => {
   const verification = criterion.verification || {};
-  const docs = (verification.docs || []).join('<br>');
-  const tests = (verification.tests || []).join('<br>');
-  const code = (verification.code || []).join('<br>');
+  const docs = (verification.docs || []).join('<br />');
+  const tests = (verification.tests || []).join('<br />');
+  const code = (verification.code || []).join('<br />');
   return `| ${criterion.id} | ${criterion.text.replace(/\n/g, ' ')} | ${docs} | ${tests} | ${code} |`;
 }).join('\n');
 
