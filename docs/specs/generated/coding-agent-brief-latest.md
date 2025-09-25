@@ -1,4 +1,4 @@
-# {{APP_TITLE}} — Coding Agent Brief
+# \{\{APP_TITLE\}\} — Coding Agent Brief
 
 Generated from srs/app.yaml. Follow every guardrail; treat this brief as binding.
 
@@ -129,8 +129,8 @@ adapters:
 ```yaml
 # srs/app.yaml (skeleton; extend with your details)
 meta:
-  app_title: "{{APP_TITLE}}"
-  repo_name: "{{REPO_NAME}}"
+  app_title: "\{\{APP_TITLE\}\}"
+  repo_name: "\{\{REPO_NAME\}\}"
   owners: ["platform@yourco.example"]
 
 security:

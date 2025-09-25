@@ -533,8 +533,8 @@ documents:
     front_matter:
       id: next-supabase-spec
       title: "{{APP_TITLE}} Platform Specification"
-      sidebar_label: Platform Spec
-      slug: /specs/next-supabase-spec
+      sidebar_label: "Platform Spec"
+      slug: "/specs/next-supabase-spec"
       description: "Authoritative Next.js + Supabase platform spec with RLS, Vault, PWA, and catalog publishing."
     heading: "# {{APP_TITLE}} — Platform Specification"
     intro: |

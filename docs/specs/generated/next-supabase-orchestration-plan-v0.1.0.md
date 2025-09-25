@@ -1,4 +1,4 @@
-# {{APP_TITLE}} — Orchestration Plan
+# \{\{APP_TITLE\}\} — Orchestration Plan
 
 Sequenced plan aligning implementation milestones with CI and catalog deliverables.
 
@@ -76,7 +76,7 @@ rm -rf /tmp/speckit-template-next-supabase \
   && pnpm docs:gen && pnpm rtm:build
 ```
 Expectations:
-- Prompts for {{REPO_NAME}}, {{APP_TITLE}}, Supabase URL + anon key during init
+- Prompts for \{\{REPO_NAME\}\}, \{\{APP_TITLE\}\}, Supabase URL + anon key during init
 - `postInit` runs pnpm install + docs generation
 - `docs/specs/generated/**` exist with placeholders replaced
 
