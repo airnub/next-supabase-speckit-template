@@ -1,11 +1,11 @@
 ---
-id: next-supabase-spec
-title: {{APP_TITLE}} Platform Specification
-sidebar_label: Platform Spec
-slug: /specs/next-supabase-spec
-description: Authoritative Next.js + Supabase platform spec with RLS, Vault, PWA, and catalog publishing.
+id: "next-supabase-spec-v0.1.0"
+title: "\\{\\{APP_TITLE\\}\\} Platform Specification"
+sidebar_label: "Platform Spec"
+slug: "/specs/next-supabase-spec/v0.1.0"
+description: "Authoritative Next.js + Supabase platform spec with RLS, Vault, PWA, and catalog publishing."
 ---
-# {{APP_TITLE}} — Platform Specification
+# \{\{APP_TITLE\}\} — Platform Specification
 
 _Source: srs/app.yaml · Generated from Speckit SRS · Owners: platform@yourco.example_
 
@@ -106,7 +106,7 @@ automated docs, and catalog publishing for Speckit consumers.
 - **Manifest:** start_url /; theme #0A0A0A.
 - **Service worker:** public/sw.ts.
 - Gate install prompt behind user gesture and Supabase profile `pwa_opt_in` flag.
-- Service worker isolates caches per Supabase user id using cache keys `{{APP_PREFIX}}-auth-${userId}`.
+- Service worker isolates caches per Supabase user id using cache keys `\{\{APP_PREFIX\}\}-auth-${userId}`.
 
 
 ---
@@ -120,7 +120,7 @@ automated docs, and catalog publishing for Speckit consumers.
 - **sendSlackAlert** — Posts to Slack when audit severity >= ERROR (triggers: database.audit_log.insert)
 - **Notification transports:** email_resend, slack_dm, webpush.
   - Preferences: Stored in notification_preferences with quiet hours and channel opt-in
-- **OG Image:** Generated via @vercel/og; defaults title "{{APP_TITLE}}".
+- **OG Image:** Generated via @vercel/og; defaults title "\{\{APP_TITLE\}\}".
 - **Admin console:** minimal.
 
 
@@ -147,7 +147,7 @@ rm -rf /tmp/speckit-template-next-supabase \
   && pnpm docs:gen && pnpm rtm:build
 ```
 Expectations:
-- Prompts for {{REPO_NAME}}, {{APP_TITLE}}, Supabase URL + anon key during init
+- Prompts for \{\{REPO_NAME\}\}, \{\{APP_TITLE\}\}, Supabase URL + anon key during init
 - `postInit` runs pnpm install + docs generation
 - `docs/specs/generated/**` exist with placeholders replaced
 

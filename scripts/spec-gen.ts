@@ -395,7 +395,22 @@ const catalogSection = [
 
 const milestonesSection = (Array.isArray(srs.milestones) ? srs.milestones : []).map((m) => `- **${m.id}** — ${m.title}`).join('\n');
 
+const escapeBraces = (value: string) => value.replace(/\{/g, '\\{').replace(/\}/g, '\\}');
+
+const appTitleToken = typeof meta.app_title === 'string' && meta.app_title.trim().length > 0
+  ? meta.app_title
+  : '{{APP_TITLE}}';
+const repoNameToken = typeof meta.repo_name === 'string' && meta.repo_name.trim().length > 0
+  ? meta.repo_name
+  : 'speckit-template-next-supabase';
+const prefixToken = typeof meta.prefix === 'string' && meta.prefix.trim().length > 0
+  ? meta.prefix
+  : 'APP';
+
 const tokens: Record<string, string> = {
+  '{{APP_TITLE}}': escapeBraces(appTitleToken),
+  '{{REPO_NAME}}': escapeBraces(repoNameToken),
+  '{{APP_PREFIX}}': escapeBraces(prefixToken),
   '{{meta.owners | first}}': firstOwner,
   '{{ARCHITECTURE_OVERVIEW}}': architectureOverview,
   '{{SECURITY_SECTION}}': securitySection,
@@ -428,17 +443,34 @@ if (srs.documents_extra_tokens) {
 function applyTokens(text?: string): string {
   if (!text) return '';
   let output = text;
-  for (const [token, value] of Object.entries(tokens)) {
-    output = output.split(token).join(value);
+  for (let i = 0; i < 5; i++) {
+    let mutated = output;
+    for (const [token, value] of Object.entries(tokens)) {
+      mutated = mutated.split(token).join(value);
+    }
+    if (mutated === output) {
+      output = mutated;
+      break;
+    }
+    output = mutated;
   }
   return output.replace(/\s+$/g, '') + '\n';
+}
+
+function formatFrontMatterValue(value: string | number | boolean) {
+  if (typeof value === 'string') {
+    const resolved = applyTokens(value).trim();
+    const escaped = resolved.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `"${escaped}"`;
+  }
+  return String(value);
 }
 
 function renderFrontMatter(frontMatter?: FrontMatter) {
   if (!frontMatter || Object.keys(frontMatter).length === 0) {
     return '';
   }
-  const lines = Object.entries(frontMatter).map(([key, value]) => `${key}: ${value}`);
+  const lines = Object.entries(frontMatter).map(([key, value]) => `${key}: ${formatFrontMatterValue(value)}`);
   return ['---', ...lines, '---', ''].join('\n');
 }
 
@@ -458,25 +490,46 @@ function renderSections(sections?: DocumentSection[]) {
   }).join('\n');
 }
 
-function renderDocument(doc: DocumentSpec, fallbackName: string, latestName: string) {
-  let md = '';
-  md += renderFrontMatter(doc.front_matter);
+function renderDocumentBody(doc: DocumentSpec) {
+  let body = '';
   if (doc.heading) {
-    md += applyTokens(doc.heading).trim() + '\n\n';
+    body += applyTokens(doc.heading).trim() + '\n\n';
   }
   if (doc.intro) {
-    md += applyTokens(doc.intro).trim() + '\n\n';
+    body += applyTokens(doc.intro).trim() + '\n\n';
   }
-  md += renderSections(doc.sections);
+  body += renderSections(doc.sections);
   if (doc.closing) {
-    md += applyTokens(doc.closing).trim() + '\n';
+    body += applyTokens(doc.closing).trim() + '\n';
   }
-  md = md.replace(/\s+$/g, '\n');
+  return body.replace(/\s+$/g, '\n');
+}
+
+function renderDocument(doc: DocumentSpec, fallbackName: string, latestName: string) {
+  const body = renderDocumentBody(doc);
+  const baseFrontMatter = { ...(doc.front_matter || {}) };
+
+  const versionedFrontMatter = { ...baseFrontMatter };
+  if (typeof versionedFrontMatter.id === 'string' && versionedFrontMatter.id.trim()) {
+    versionedFrontMatter.id = `${versionedFrontMatter.id}-v${version}`;
+  }
+  if (typeof versionedFrontMatter.slug === 'string' && versionedFrontMatter.slug.trim()) {
+    const normalized = versionedFrontMatter.slug.replace(/\/$/, '');
+    versionedFrontMatter.slug = `${normalized}/v${version}`;
+  }
+
+  const latestFrontMatter = { ...baseFrontMatter };
+  if (typeof latestFrontMatter.id === 'string' && latestFrontMatter.id.trim()) {
+    latestFrontMatter.id = `${latestFrontMatter.id}-latest`;
+  }
+
+  const versionedMd = renderFrontMatter(versionedFrontMatter) + body;
+  const latestMd = renderFrontMatter(latestFrontMatter) + body;
 
   const specificName = doc.output_file ? applyTokens(doc.output_file).trim() : `${safeSlug}-` + fallbackName;
   const specificPath = path.join(specsOutputDir, specificName);
-  fs.writeFileSync(specificPath, md);
-  fs.writeFileSync(path.join(specsOutputDir, latestName), md);
+  fs.writeFileSync(specificPath, versionedMd);
+  fs.writeFileSync(path.join(specsOutputDir, latestName), latestMd);
   return specificName;
 }
 
